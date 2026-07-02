@@ -1,5 +1,3 @@
-// src/app/(app)/services/[id].tsx
-
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, Text } from "react-native";
 
