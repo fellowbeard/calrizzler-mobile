@@ -30,7 +30,7 @@ export default function ServicesScreen() {
       {userCanWrite && (
         <View style={{ padding: 24, paddingBottom: 0 }}>
           <Button
-            title="New Appointment"
+            title="New Service"
             onPress={() => router.push("/services/new")}
           />
         </View>

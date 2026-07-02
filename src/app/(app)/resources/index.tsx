@@ -31,7 +31,7 @@ export default function ResourcesScreen() {
       {userCanWrite && (
         <View style={{ padding: 24, paddingBottom: 0 }}>
           <Button
-            title="New Appointment"
+            title="New Resource"
             onPress={() => router.push("/resources/new")}
           />
         </View>
