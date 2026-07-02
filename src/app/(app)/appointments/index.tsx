@@ -1,13 +1,17 @@
 import { router } from "expo-router";
-import { FlatList, Pressable, Text } from "react-native";
+import { FlatList, Pressable, Text, View, Button } from "react-native";
 
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppointments } from "@/hooks/useAppointments";
 import { EmptyState } from "@/components/EmptyState";
+import { useAuth } from "@/auth/useAuth";
+import { canWrite } from "@/auth/permissions";
 
 export default function AppointmentsScreen() {
   const { appointments, error, isLoading } = useAppointments();
+  const { user } = useAuth();
+  const userCanWrite = canWrite(user);
 
   if (error) {
     return <ErrorState message={error} />;
@@ -22,25 +26,35 @@ export default function AppointmentsScreen() {
   }
 
   return (
-    <FlatList
-      data={appointments}
-      keyExtractor={(item) => String(item.id)}
-      contentContainerStyle={{ padding: 24 }}
-      renderItem={({ item }) => (
-        <Pressable
-          onPress={() => router.push(`/appointments/${item.id}`)}
-          accessibilityRole="button"
-          accessibilityLabel={`Open appointment ${item.id}`}
-          style={{ padding: 16, borderBottomWidth: 1 }}
-        >
-          <Text style={{ fontSize: 18 }}>
-            {item.client ? `${item.client.first_name} ${item.client.last_name}` : "No client"}
-          </Text>
-
-          <Text>{item.scheduled_at}</Text>
-          <Text>{item.status}</Text>
-        </Pressable>
+    <View style={{ flex: 1 }}>
+      {userCanWrite && (
+        <View style={{ padding: 24, paddingBottom: 0 }}>
+          <Button
+            title="New Appointment"
+            onPress={() => router.push("/appointments/new")}
+          />
+        </View>
       )}
-    />
+      <FlatList
+        data={appointments}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={{ padding: 24 }}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => router.push(`/appointments/${item.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open appointment ${item.id}`}
+            style={{ padding: 16, borderBottomWidth: 1 }}
+          >
+            <Text style={{ fontSize: 18 }}>
+              {item.client ? `${item.client.first_name} ${item.client.last_name}` : "No client"}
+            </Text>
+
+            <Text>{item.scheduled_at}</Text>
+            <Text>{item.status}</Text>
+          </Pressable>
+        )}
+      />
+    </View>
   );
 }
