@@ -2,8 +2,9 @@ import { useState } from "react";
 import { router } from "expo-router";
 import { Button, Text, TextInput, View } from "react-native";
 
-import { apiFetch } from "../api/client";
-import { saveToken } from "../auth/tokenStorage";
+import { apiFetch } from "@/api/client";
+import { useAuth } from "@/auth/useAuth";
+import type { LoginResponse } from "@/types/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -11,12 +12,14 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const { signIn } = useAuth();
+
   async function handleLogin() {
     setError("");
     setIsLoading(true);
 
     try {
-      const data = await apiFetch("/api/v1/login", {
+      const data = await apiFetch<LoginResponse>("/api/v1/login", {
         method: "POST",
         auth: false,
         body: JSON.stringify({
@@ -25,7 +28,7 @@ export default function LoginScreen() {
         }),
       });
 
-      await saveToken(data.token);
+      await signIn(data.token);
 
       router.replace("/dashboard");
     } catch (error: any) {

@@ -2,20 +2,32 @@ import { getToken } from "../auth/tokenStorage";
 
 const API_BASE_URL = "http://localhost:3000";
 
+export type ApiError = {
+  status: number;
+  code: string;
+  message: string;
+  details: unknown;
+};
+
 type ApiOptions = RequestInit & {
   auth?: boolean;
 };
 
-export async function apiFetch(path: string, options: ApiOptions = {}) {
-  const useAuth = options.auth !== false;
-  const token = useAuth ? await getToken() : null;
+export async function apiFetch<T = unknown>(
+  path: string,
+  options: ApiOptions = {}
+): Promise<T> {
+  const { auth = true, headers, ...fetchOptions } = options;
+
+  const token = auth ? await getToken() : null;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     headers: {
+      Accept: "application/json",
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
+      ...headers,
     },
   });
 
@@ -25,14 +37,19 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
     throw buildApiError(response, data);
   }
 
-  return data;
+  return data as T;
 }
 
-function buildApiError(response: Response, data: any) {
+function buildApiError(response: Response, data: any): ApiError {
   return {
     status: response.status,
     code: data?.error?.code || "request_failed",
-    message: data?.error?.message || response.statusText || "Request failed.",
+    message:
+      data?.error?.message ||
+      data?.error ||
+      data?.message ||
+      response.statusText ||
+      "Request failed.",
     details: data?.error?.details || null,
   };
 }

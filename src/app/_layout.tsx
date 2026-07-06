@@ -1,10 +1,11 @@
 import { Stack } from "expo-router";
 
+import { AuthProvider } from "@/auth/AuthProvider";
+
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: "ServiceBook Login" }} />
-      <Stack.Screen name="dashboard" options={{ title: "Dashboard" }} />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </AuthProvider>
   );
 }
