@@ -1,13 +1,14 @@
-import { useLocalSearchParams } from "expo-router";
-import { ScrollView, Text } from "react-native";
-
+import { Link, useLocalSearchParams } from "expo-router";
+import { Button, ScrollView, Text, View } from "react-native";
+import { canWrite } from "@/auth/permissions";
+import { useAuth } from "@/auth/useAuth";
 import { useClient } from "@/hooks/useClient";
-
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
 
 export default function ClientDetailScreen() {
+  const { user } = useAuth();
   const { id } = useLocalSearchParams();
   const { client, error } = useClient(id);
 
@@ -28,6 +29,11 @@ export default function ClientDetailScreen() {
 
         <Text>{client.email || "No email"}</Text>
         <Text>{client.phone || "No phone"}</Text>
+        {canWrite(user) ? (
+          <Link href={`/clients/${client.id}/edit`} asChild>
+            <Button title="Edit Client" />
+          </Link>
+        ) : null}
 
         <Text style={{ fontSize: 20, marginTop: 20 }}>Notes</Text>
 
