@@ -1,15 +1,16 @@
-import { Redirect, router } from "expo-router";
-import { useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
-import { useClients } from "@/hooks/useClients";
-import { useResources } from "@/hooks/useResources";
-import { useServices } from "@/hooks/useServices";
+import { Redirect, router } from "expo-router";
+import { useState } from "react";
+import { Button, ScrollView, Text, TextInput } from "react-native";
 
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
+import { useClients } from "@/hooks/useClients";
 import { useCreateAppointment } from "@/hooks/useCreateAppointment";
+import { useCreateClient } from "@/hooks/useCreateClient";
+import { useResources } from "@/hooks/useResources";
+import { useServices } from "@/hooks/useServices";
 
 export default function NewAppointmentScreen() {
   const { user } = useAuth();
@@ -19,32 +20,57 @@ export default function NewAppointmentScreen() {
 
   const {
     createAppointment,
-    error,
+    error: appointmentError,
     fieldErrors,
-    isSaving,
+    isSaving: isSavingAppointment,
   } = useCreateAppointment();
+
+  const {
+    createClient,
+    error: clientError,
+    isSaving: isSavingClient,
+  } = useCreateClient();
 
   const [clientId, setClientId] = useState("");
   const [resourceId, setResourceId] = useState("");
   const [scheduledAt, setScheduledAt] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+
+  const [newClient, setNewClient] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+  });
+
+  const isNewClient = clientId === "new";
+  const isSaving = isSavingAppointment || isSavingClient;
 
   if (!canWrite(user)) {
     return <Redirect href="/appointments" />;
   }
 
   async function handleSubmit() {
+    let selectedClientId = Number(clientId);
+
+    if (isNewClient) {
+      const createdClient = await createClient(newClient);
+
+      if (!createdClient) {
+        return;
+      }
+
+      selectedClientId = createdClient.id;
+    }
+
     const appointment = await createAppointment({
-      client_id: Number(clientId),
+      client_id: selectedClientId,
       resource_id: resourceId ? Number(resourceId) : null,
       scheduled_at: scheduledAt.toISOString(),
-      status,
-      duration_minutes: durationMinutes
-        ? Number(durationMinutes)
-        : null,
+      status: "scheduled",
+      duration_minutes: durationMinutes ? Number(durationMinutes) : null,
       service_ids: selectedServiceIds,
     });
 
@@ -54,10 +80,8 @@ export default function NewAppointmentScreen() {
   }
 
   return (
-    <View style={{ padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 28 }}>
-        New Appointment
-      </Text>
+    <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 28 }}>New Appointment</Text>
 
       <Text style={{ fontSize: 18 }}>Client</Text>
 
@@ -65,10 +89,8 @@ export default function NewAppointmentScreen() {
         selectedValue={clientId}
         onValueChange={(value) => setClientId(String(value))}
       >
-        <Picker.Item
-          label="Select a client..."
-          value=""
-        />
+        <Picker.Item label="Select a client..." value="" />
+        <Picker.Item label="+ New Client" value="new" />
 
         {clients.map((client) => (
           <Picker.Item
@@ -84,6 +106,51 @@ export default function NewAppointmentScreen() {
           {fieldErrors.client_id.join(", ")}
         </Text>
       ) : null}
+
+      {isNewClient && (
+        <>
+          <Text style={{ fontSize: 18 }}>New Client Info</Text>
+
+          <TextInput
+            placeholder="First name"
+            value={newClient.first_name}
+            onChangeText={(value) =>
+              setNewClient({ ...newClient, first_name: value })
+            }
+            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+          />
+
+          <TextInput
+            placeholder="Last name"
+            value={newClient.last_name}
+            onChangeText={(value) =>
+              setNewClient({ ...newClient, last_name: value })
+            }
+            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+          />
+
+          <TextInput
+            placeholder="Email"
+            value={newClient.email}
+            onChangeText={(value) =>
+              setNewClient({ ...newClient, email: value })
+            }
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+          />
+
+          <TextInput
+            placeholder="Phone"
+            value={newClient.phone}
+            onChangeText={(value) =>
+              setNewClient({ ...newClient, phone: value })
+            }
+            keyboardType="phone-pad"
+            style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+          />
+        </>
+      )}
 
       <Text style={{ fontSize: 18 }}>Resource</Text>
 
@@ -102,14 +169,10 @@ export default function NewAppointmentScreen() {
         ))}
       </Picker>
 
-      {fieldErrors.resource_id ? (
-        <Text style={{ color: "red" }}>
-          {fieldErrors.resource_id.join(", ")}
-        </Text>
-      ) : null}
+      <Text style={{ fontSize: 18 }}>Appointment Time</Text>
 
       <Button
-        title={`Appointment Time: ${scheduledAt.toLocaleString()}`}
+        title={scheduledAt.toLocaleString()}
         onPress={() => setShowDatePicker(true)}
       />
 
@@ -130,41 +193,6 @@ export default function NewAppointmentScreen() {
       {fieldErrors.scheduled_at ? (
         <Text style={{ color: "red" }}>
           {fieldErrors.scheduled_at.join(", ")}
-        </Text>
-      ) : null}
-
-      <TextInput
-        placeholder="Status"
-        value={status}
-        onChangeText={setStatus}
-        style={{
-          borderWidth: 1,
-          padding: 12,
-          borderRadius: 8,
-        }}
-      />
-
-      {fieldErrors.status ? (
-        <Text style={{ color: "red" }}>
-          {fieldErrors.status.join(", ")}
-        </Text>
-      ) : null}
-
-      <TextInput
-        placeholder="Duration Minutes (optional)"
-        value={durationMinutes}
-        onChangeText={setDurationMinutes}
-        keyboardType="number-pad"
-        style={{
-          borderWidth: 1,
-          padding: 12,
-          borderRadius: 8,
-        }}
-      />
-
-      {fieldErrors.duration_minutes ? (
-        <Text style={{ color: "red" }}>
-          {fieldErrors.duration_minutes.join(", ")}
         </Text>
       ) : null}
 
@@ -200,21 +228,39 @@ export default function NewAppointmentScreen() {
         </Text>
       ) : null}
 
-      {error ? (
+      <TextInput
+        placeholder="Duration override minutes optional"
+        value={durationMinutes}
+        onChangeText={setDurationMinutes}
+        keyboardType="number-pad"
+        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+      />
+
+      {fieldErrors.duration_minutes ? (
         <Text style={{ color: "red" }}>
-          {error}
+          {fieldErrors.duration_minutes.join(", ")}
         </Text>
       ) : null}
 
+      {fieldErrors.base ? (
+        <Text style={{ color: "red" }}>
+          {fieldErrors.base.join(", ")}
+        </Text>
+      ) : null}
+
+      {clientError ? (
+        <Text style={{ color: "red" }}>{clientError}</Text>
+      ) : null}
+
+      {appointmentError ? (
+        <Text style={{ color: "red" }}>{appointmentError}</Text>
+      ) : null}
+
       <Button
-        title={
-          isSaving
-            ? "Saving..."
-            : "Create Appointment"
-        }
+        title={isSaving ? "Saving..." : "Create Appointment"}
         onPress={handleSubmit}
         disabled={isSaving}
       />
-    </View>
+    </ScrollView>
   );
 }
