@@ -3,30 +3,46 @@ import { Text, View } from "react-native";
 
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
-import { ClientForm } from "@/components/forms/ClientForm";
-import { useCreateClient } from "@/hooks/useCreateClient";
+import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { ErrorState } from "@/components/ErrorState";
+import { LoadingState } from "@/components/LoadingState";
+import { useCreateAppointment } from "@/hooks/useCreateAppointment";
+import { useDashboard } from "@/hooks/useDashboard";
 
-export default function NewClientScreen() {
+export default function NewAppointmentScreen() {
   const { user } = useAuth();
-  const { createClient, error, isSaving } = useCreateClient();
+  const { dashboard, error: dashboardError, isLoading } = useDashboard();
+  const { createAppointment, error: saveError, isSaving } = useCreateAppointment();
 
   if (!canWrite(user)) {
-    return <Redirect href="/clients" />;
+    return <Redirect href="/appointments" />;
+  }
+
+  if (dashboardError) {
+    return <ErrorState message={dashboardError} />;
+  }
+
+  if (isLoading || !dashboard) {
+    return <LoadingState message="Loading appointment form..." />;
   }
 
   return (
     <View style={{ padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 28 }}>New Client</Text>
+      <Text style={{ fontSize: 28 }}>New Appointment</Text>
 
-      <ClientForm
-        submitLabel="Create Client"
+      <AppointmentForm
+        clients={dashboard.clients}
+        resources={dashboard.resources}
+        services={dashboard.services}
+        submitLabel="Create Appointment"
         isSaving={isSaving}
-        error={error}
+        error={saveError}
+        onNewClient={() => router.push("/clients/new")}
         onSubmit={async (values) => {
-          const client = await createClient(values);
+          const appointment = await createAppointment(values);
 
-          if (client) {
-            router.replace(`/clients/${client.id}`);
+          if (appointment) {
+            router.replace(`/appointments/${appointment.id}`);
           }
         }}
       />

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
+import { Button, ScrollView, Text, TextInput, View } from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import type { Appointment } from "@/types/appointment";
 import type { Client } from "@/types/client";
@@ -8,7 +10,7 @@ import type { Service } from "@/types/service";
 
 export type AppointmentFormValues = {
   client_id: number;
-  resource_id: number;
+  resource_id: number | null;
   scheduled_at: string;
   status: string;
   duration_minutes: number | null;
@@ -23,6 +25,7 @@ type AppointmentFormProps = {
   submitLabel: string;
   isSaving: boolean;
   error?: string;
+  onNewClient: () => void;
   onSubmit: (values: AppointmentFormValues) => void | Promise<void>;
 };
 
@@ -34,11 +37,13 @@ export function AppointmentForm({
   submitLabel,
   isSaving,
   error,
+  onNewClient,
   onSubmit,
 }: AppointmentFormProps) {
   const [clientId, setClientId] = useState("");
   const [resourceId, setResourceId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledAt, setScheduledAt] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
@@ -48,17 +53,12 @@ export function AppointmentForm({
 
     setClientId(String(initialValues.client_id ?? ""));
     setResourceId(String(initialValues.resource_id ?? ""));
-    setScheduledAt(initialValues.scheduled_at ?? "");
+    setScheduledAt(
+      initialValues.scheduled_at
+        ? new Date(initialValues.scheduled_at)
+        : new Date()
+    );
     setStatus(initialValues.status ?? "scheduled");
-    setDurationMinutes(
-      initialValues.duration_minutes === null ||
-        initialValues.duration_minutes === undefined
-        ? ""
-        : String(initialValues.duration_minutes)
-    );
-    setSelectedServiceIds(
-      initialValues.services?.map((service) => service.id) ?? []
-    );
   }, [initialValues]);
 
   function toggleService(serviceId: number) {
@@ -69,11 +69,11 @@ export function AppointmentForm({
     );
   }
 
-  function handleSubmit() {
+   function handleSubmit() {
     onSubmit({
       client_id: Number(clientId),
-      resource_id: Number(resourceId),
-      scheduled_at: scheduledAt,
+      resource_id: resourceId ? Number(resourceId) : null,
+      scheduled_at: scheduledAt.toISOString(),
       status,
       duration_minutes: durationMinutes ? Number(durationMinutes) : null,
       service_ids: selectedServiceIds,
@@ -81,46 +81,89 @@ export function AppointmentForm({
   }
 
   return (
-    <View style={{ gap: 12 }}>
+    <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 40 }}>
       <Text>Client</Text>
-      {clients.map((client) => (
-        <Button
-          key={client.id}
-          title={`${client.first_name} ${client.last_name}`}
-          onPress={() => setClientId(String(client.id))}
-          color={clientId === String(client.id) ? "#444" : undefined}
-        />
-      ))}
+
+      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+        <Picker
+          selectedValue={clientId}
+          onValueChange={(value) => {
+            if (value === "new") {
+              onNewClient();
+              return;
+            }
+
+            setClientId(String(value));
+          }}
+        >
+          <Picker.Item label="+ New Client" value="new" />
+          <Picker.Item label="Select a client" value="" />
+
+          {clients.map((client) => (
+            <Picker.Item
+              key={client.id}
+              label={`${client.first_name} ${client.last_name}`}
+              value={String(client.id)}
+            />
+          ))}
+        </Picker>
+      </View>
 
       <Text>Resource</Text>
-      {resources.map((resource) => (
-        <Button
-          key={resource.id}
-          title={resource.name}
-          onPress={() => setResourceId(String(resource.id))}
-          color={resourceId === String(resource.id) ? "#444" : undefined}
-        />
-      ))}
+
+      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+        <Picker
+          selectedValue={resourceId}
+          onValueChange={(value) => setResourceId(String(value))}
+        >
+          <Picker.Item label="Select a resource" value="" />
+
+          {resources.map((resource) => (
+            <Picker.Item
+              key={resource.id}
+              label={resource.name}
+              value={String(resource.id)}
+            />
+          ))}
+        </Picker>
+      </View>
 
       <Text>Scheduled At</Text>
-      <TextInput
-        placeholder="YYYY-MM-DDTHH:mm:ss"
-        value={scheduledAt}
-        onChangeText={setScheduledAt}
-        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+
+      <Button
+        title={scheduledAt.toLocaleString()}
+        onPress={() => setShowDatePicker(true)}
       />
 
-      <Text>Status</Text>
-      {["scheduled", "completed", "canceled"].map((statusOption) => (
-        <Button
-          key={statusOption}
-          title={statusOption}
-          onPress={() => setStatus(statusOption)}
-          color={status === statusOption ? "#444" : undefined}
+      {showDatePicker ? (
+        <DateTimePicker
+          value={scheduledAt}
+          mode="datetime"
+          onChange={(_, selectedDate) => {
+            setShowDatePicker(false);
+
+            if (selectedDate) {
+              setScheduledAt(selectedDate);
+            }
+          }}
         />
-      ))}
+      ) : null}
+
+      <Text>Status</Text>
+
+      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+        <Picker
+          selectedValue={status}
+          onValueChange={(value) => setStatus(String(value))}
+        >
+          <Picker.Item label="Scheduled" value="scheduled" />
+          <Picker.Item label="Completed" value="completed" />
+          <Picker.Item label="Canceled" value="canceled" />
+        </Picker>
+      </View>
 
       <Text>Duration Override</Text>
+
       <TextInput
         placeholder="Leave blank to use service duration"
         value={durationMinutes}
@@ -130,13 +173,14 @@ export function AppointmentForm({
       />
 
       <Text>Services</Text>
+
       {services.map((service) => (
         <Button
           key={service.id}
           title={
             selectedServiceIds.includes(service.id)
-              ? `✓ ${service.title}`
-              : service.title
+              ? `✓ ${service.title} — ${service.duration_minutes} min`
+              : `${service.title} — ${service.duration_minutes} min`
           }
           onPress={() => toggleService(service.id)}
           color={selectedServiceIds.includes(service.id) ? "#444" : undefined}
@@ -150,6 +194,6 @@ export function AppointmentForm({
         onPress={handleSubmit}
         disabled={isSaving}
       />
-    </View>
+    </ScrollView>
   );
 }
