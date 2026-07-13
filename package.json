@@ -35,15 +35,19 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~56.0.4",
+    "prettier": "^3.9.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "expo lint"
-  },
+  "start": "expo start",
+  "reset-project": "node ./scripts/reset-project.js",
+  "android": "expo start --android",
+  "ios": "expo start --ios",
+  "web": "expo start --web",
+  "lint": "eslint .",
+  "lint:fix": "eslint . --fix"
+},
   "private": true
 }

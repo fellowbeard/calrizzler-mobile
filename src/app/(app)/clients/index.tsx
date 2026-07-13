@@ -12,7 +12,6 @@ export default function ClientsScreen() {
   const { clients, error, isLoading } = useClients();
   const { user } = useAuth();
   const userCanWrite = canWrite(user);
-
   if (error) {
     return <ErrorState message={error} />;
   }

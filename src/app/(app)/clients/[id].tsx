@@ -1,5 +1,5 @@
 import { Link, useLocalSearchParams } from "expo-router";
-import { Button, ScrollView, Text, View } from "react-native";
+import { Button, ScrollView, Text } from "react-native";
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { useClient } from "@/hooks/useClient";

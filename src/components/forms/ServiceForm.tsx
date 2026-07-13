@@ -11,7 +11,7 @@ export type ServiceFormValues = {
 type ServiceFormInitialValues = {
   title?: string | null;
   price?: string | number | null;
-  duration_minutes?: string | number | null;
+  duration_minutes?: string | number;
   description?: string | null;
 };
 
