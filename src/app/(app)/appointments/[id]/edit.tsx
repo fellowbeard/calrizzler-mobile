@@ -60,6 +60,7 @@ export default function EditAppointmentScreen() {
       <AppointmentForm
         initialValues={appointment}
         clients={dashboard.clients}
+        onNewClient={() => router.push("/clients/new")}
         resources={dashboard.resources}
         services={dashboard.services}
         submitLabel="Save Changes"

@@ -16,12 +16,12 @@ export function formatTime(dateString: string) {
 
 export function calculateEndTime(
   startDateString: string,
-  durationMinutes: number | null
+  durationMinutes: number
 ) {
   const start = new Date(startDateString);
 
   const end = new Date(
-    start.getTime() + (durationMinutes ?? 0) * 60 * 1000
+    start.getTime() + durationMinutes * 60 * 1000
   );
 
   return end;

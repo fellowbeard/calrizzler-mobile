@@ -5,6 +5,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppointment } from "@/hooks/useAppointment";
+import {
+  calculateEndTime,
+  formatDate,
+  formatTime,
+} from "@/utils/dateFormatting";
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -22,6 +27,11 @@ export default function AppointmentDetailScreen() {
     return <EmptyState message="Appointment not found." />;
   }
 
+  const endTime = calculateEndTime(
+    appointment.scheduled_at,
+    appointment.duration_minutes
+  );
+
   return (
     <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>Appointment</Text>
@@ -33,9 +43,16 @@ export default function AppointmentDetailScreen() {
           : "No client"}
       </Text>
 
-      <Text>Scheduled at: {appointment.scheduled_at}</Text>
+      <Text>Start Date: {formatDate(appointment.scheduled_at)}</Text>
+      <Text>Start Time: {formatTime(appointment.scheduled_at)}</Text>
+
+      <Text>End Date: {formatDate(endTime.toISOString())}</Text>
+      <Text>End Time: {formatTime(endTime.toISOString())}</Text>
+
       <Text>Status: {appointment.status}</Text>
-      <Text>Duration: {appointment.duration_minutes ?? "N/A"} minutes</Text>
+      <Text>
+        Duration: {appointment.duration_minutes} minutes
+      </Text>
 
       <Text style={{ fontSize: 20, marginTop: 16 }}>Services</Text>
 
@@ -44,7 +61,8 @@ export default function AppointmentDetailScreen() {
       ) : (
         appointment.services.map((service) => (
           <Text key={service.id}>
-            {service.title} — ${service.price} — {service.duration_minutes} min
+            {service.title} — ${service.price} —{" "}
+            {service.duration_minutes} min
           </Text>
         ))
       )}

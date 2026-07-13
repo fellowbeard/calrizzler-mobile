@@ -13,7 +13,7 @@ export type AppointmentFormValues = {
   resource_id: number | null;
   scheduled_at: string;
   status: string;
-  duration_minutes: number | null;
+  duration_minutes: number;
   service_ids: number[];
 };
 
@@ -61,6 +61,10 @@ export function AppointmentForm({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const parsedDuration = Number(durationMinutes);
+  if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+    return;
+  }
   const [hasManualDurationOverride, setHasManualDurationOverride] = useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
@@ -114,10 +118,13 @@ export function AppointmentForm({
       resource_id: resourceId ? Number(resourceId) : null,
       scheduled_at: scheduledAt.toISOString(),
       status,
-      duration_minutes: durationMinutes ? Number(durationMinutes) : null,
+      duration_minutes: parsedDuration,
       service_ids: selectedServiceIds,
     });
-  }
+   }
+  const hasValidDuration =
+    Number.isFinite(Number(durationMinutes)) &&
+    Number(durationMinutes) > 0;
 
   return (
     <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 40 }}>
@@ -249,7 +256,7 @@ export function AppointmentForm({
       <Button
         title={isSaving ? "Saving..." : submitLabel}
         onPress={handleSubmit}
-        disabled={isSaving}
+        disabled={isSaving || !hasValidDuration}
       />
     </ScrollView>
   );

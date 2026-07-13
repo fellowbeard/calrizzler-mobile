@@ -7,6 +7,11 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/auth/useAuth";
 import { canWrite } from "@/auth/permissions";
+import {
+  formatDate,
+  formatTime,
+  calculateEndTime,
+} from "@/utils/dateFormatting";
 
 export default function AppointmentsScreen() {
   const { appointments, error, isLoading } = useAppointments();
@@ -35,25 +40,53 @@ export default function AppointmentsScreen() {
           />
         </View>
       )}
+
       <FlatList
         data={appointments}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 24 }}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/appointments/${item.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Open appointment ${item.id}`}
-            style={{ padding: 16, borderBottomWidth: 1 }}
-          >
-            <Text style={{ fontSize: 18 }}>
-              {item.client ? `${item.client.first_name} ${item.client.last_name}` : "No client"}
-            </Text>
+        renderItem={({ item }) => {
+          const endTime = calculateEndTime(
+            item.scheduled_at,
+            item.duration_minutes
+          );
 
-            <Text>{item.scheduled_at}</Text>
-            <Text>{item.status}</Text>
-          </Pressable>
-        )}
+          return (
+            <Pressable
+              onPress={() => router.push(`/appointments/${item.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open appointment ${item.id}`}
+              style={{
+                padding: 16,
+                borderBottomWidth: 1,
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>
+                {item.client
+                  ? `${item.client.first_name} ${item.client.last_name}`
+                  : "No client"}
+              </Text>
+
+              <Text>
+                Start Date: {formatDate(item.scheduled_at)}
+              </Text>
+
+              <Text>
+                Start Time: {formatTime(item.scheduled_at)}
+              </Text>
+
+              <Text>
+                End Date: {formatDate(endTime.toISOString())}
+              </Text>
+
+              <Text>
+                End Time: {formatTime(endTime.toISOString())}
+              </Text>
+
+              <Text>{item.status}</Text>
+            </Pressable>
+          );
+        }}
       />
     </View>
   );

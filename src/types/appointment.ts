@@ -17,7 +17,7 @@ export type Appointment = {
   resource: Resource | null;
   scheduled_at: string;
   status: string;
-  duration_minutes: number | null;
+  duration_minutes: number;
   blocking_reservation_time: string;
   uses_default_duration: boolean;
   services: Service[];
