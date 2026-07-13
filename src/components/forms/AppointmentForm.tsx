@@ -29,6 +29,21 @@ type AppointmentFormProps = {
   onSubmit: (values: AppointmentFormValues) => void | Promise<void>;
 };
 
+function formatDuration(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes} min`;
+  }
+
+  if (remainingMinutes === 0) {
+    return `${hours} hr`;
+  }
+
+  return `${hours} hr ${remainingMinutes} min`;
+}
+
 export function AppointmentForm({
   initialValues,
   clients,
@@ -46,6 +61,7 @@ export function AppointmentForm({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [hasManualDurationOverride, setHasManualDurationOverride] = useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
   useEffect(() => {
@@ -59,7 +75,30 @@ export function AppointmentForm({
         : new Date()
     );
     setStatus(initialValues.status ?? "scheduled");
+
+    setDurationMinutes(
+      initialValues.duration_minutes != null
+        ? String(initialValues.duration_minutes)
+        : ""
+    );
+
+    setSelectedServiceIds(
+      initialValues.services?.map((service) => service.id) ?? []
+    );
   }, [initialValues]);
+
+  useEffect(() => {
+    if (hasManualDurationOverride) return;
+
+    const totalDuration = services
+      .filter((service) => selectedServiceIds.includes(service.id))
+      .reduce(
+        (total, service) => total + Number(service.duration_minutes || 0),
+        0
+      );
+
+    setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
+  }, [selectedServiceIds, services, hasManualDurationOverride]);
 
   function toggleService(serviceId: number) {
     setSelectedServiceIds((currentIds) =>
@@ -162,15 +201,33 @@ export function AppointmentForm({
         </Picker>
       </View>
 
-      <Text>Duration Override</Text>
+      <Text>Duration Minutes</Text>
 
       <TextInput
-        placeholder="Leave blank to use service duration"
+        placeholder="Total time in minutes"
         value={durationMinutes}
-        onChangeText={setDurationMinutes}
+        onChangeText={(value) => {
+          setDurationMinutes(value);
+          setHasManualDurationOverride(true);
+        }}
         keyboardType="number-pad"
         style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
       />
+
+      {durationMinutes && Number(durationMinutes) > 0 ? (
+        <Text>
+          Total time: {formatDuration(Number(durationMinutes))}
+        </Text>
+      ) : null}
+
+      {hasManualDurationOverride ? (
+        <Button
+          title="Use Service Duration"
+          onPress={() => {
+            setHasManualDurationOverride(false);
+          }}
+        />
+      ) : null}
 
       <Text>Services</Text>
 
