@@ -61,10 +61,6 @@ export function AppointmentForm({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
-  const parsedDuration = Number(durationMinutes);
-  if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
-    return;
-  }
   const [hasManualDurationOverride, setHasManualDurationOverride] = useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
@@ -112,7 +108,11 @@ export function AppointmentForm({
     );
   }
 
-   function handleSubmit() {
+  function handleSubmit() {
+  const parsedDuration = Number(durationMinutes);
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return;
+    }
     onSubmit({
       client_id: Number(clientId),
       resource_id: resourceId ? Number(resourceId) : null,
@@ -121,7 +121,8 @@ export function AppointmentForm({
       duration_minutes: parsedDuration,
       service_ids: selectedServiceIds,
     });
-   }
+  }
+
   const hasValidDuration =
     Number.isFinite(Number(durationMinutes)) &&
     Number(durationMinutes) > 0;
