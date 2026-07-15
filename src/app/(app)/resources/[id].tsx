@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-import { ScrollView, Text } from "react-native";
+import { Link, useLocalSearchParams } from "expo-router";
+import { Button, ScrollView, Text } from "react-native";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -25,6 +25,11 @@ export default function ResourceDetailScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>{resource.name}</Text>
+
+      <Link href={`/resources/${resource.id}/edit`} asChild>
+        <Button title="Edit Resource" />
+      </Link>
+
       <Text>Resource ID: {resource.id}</Text>
     </ScrollView>
   );

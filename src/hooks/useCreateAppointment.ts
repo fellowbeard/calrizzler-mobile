@@ -8,7 +8,7 @@ type CreateAppointmentInput = {
   resource_id?: number | null;
   scheduled_at: string;
   status: string;
-  duration_minutes?: number | null;
+  duration_minutes?: number;
   service_ids: number[];
 };
 

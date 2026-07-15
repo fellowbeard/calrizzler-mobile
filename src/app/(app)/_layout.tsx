@@ -1,21 +1,99 @@
-import { Stack } from "expo-router";
+import { router } from "expo-router";
+import {
+  Drawer,
+  DrawerContentScrollView,
+  DrawerItem,
+  DrawerItemList,
+  type DrawerContentComponentProps,
+} from "expo-router/drawer";
 
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
+import { useAuth } from "@/auth/useAuth";
+
+const drawerRoutes = [
+  {
+    name: "dashboard",
+    title: "Dashboard",
+    path: "/dashboard",
+  },
+  {
+    name: "appointments",
+    title: "Appointments",
+    path: "/appointments",
+  },
+  {
+    name: "clients",
+    title: "Clients",
+    path: "/clients",
+  },
+  {
+    name: "services",
+    title: "Services",
+    path: "/services",
+  },
+  {
+    name: "resources",
+    title: "Resources",
+    path: "/resources",
+  },
+  {
+    name: "settings",
+    title: "Settings",
+    path: "/settings",
+  },
+] as const;
+
+function CustomDrawerContent(
+  props: DrawerContentComponentProps
+) {
+  const { signOut } = useAuth();
+
+  async function handleLogout() {
+    await signOut();
+  }
+
+  return (
+    <DrawerContentScrollView
+      {...props}
+      contentContainerStyle={{ flex: 1 }}
+    >
+      <DrawerItemList {...props} />
+
+      <DrawerItem
+        label="Logout"
+        onPress={handleLogout}
+        style={{ marginTop: "auto" }}
+      />
+    </DrawerContentScrollView>
+  );
+}
 
 export default function AppLayout() {
   return (
     <ProtectedRoute>
-      <Stack>
-        <Stack.Screen name="dashboard" options={{ title: "Dashboard" }} />
-        <Stack.Screen name="clients" options={{ title: "Clients" }} />
-        <Stack.Screen name="clients/[id]" options={{ title: "Client Detail" }} />
-        <Stack.Screen name="appointments/index" options={{ title: "Appointments" }} />
-        <Stack.Screen name="appointments/[id]" options={{ title: "Appointment Detail" }} />
-        <Stack.Screen name="services/index" options={{ title: "Services" }} />
-        <Stack.Screen name="services/[id]" options={{ title: "Service Detail" }} />
-        <Stack.Screen name="resources/index" options={{ title: "Resources" }} />
-        <Stack.Screen name="resources/[id]" options={{ title: "Resource Detail" }} />
-      </Stack>
+      <Drawer
+        drawerContent={(props) => (
+          <CustomDrawerContent {...props} />
+        )}
+      >
+        {drawerRoutes.map((route) => (
+          <Drawer.Screen
+            key={route.name}
+            name={route.name}
+            options={{
+              title: route.title,
+              drawerLabel: route.title,
+            }}
+            listeners={({ navigation }) => ({
+              drawerItemPress: (event) => {
+                event.preventDefault();
+                navigation.closeDrawer();
+                router.replace(route.path);
+              },
+            })}
+          />
+        ))}
+      </Drawer>
     </ProtectedRoute>
   );
 }
