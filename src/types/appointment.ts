@@ -13,7 +13,7 @@ export type Appointment = {
   user_id: number;
   client_id: number;
   resource_id: number | null;
-  client: AppointmentClient | null;
+  client: AppointmentClient;
   resource: Resource | null;
   scheduled_at: string;
   status: string;
