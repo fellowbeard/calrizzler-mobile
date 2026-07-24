@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/useAuth";
 import { useDashboard } from "@/hooks/useDashboard";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { AppointmentCalendar } from "@/components/AppointmentCalendar";
 
 export default function DashboardScreen() {
   const { dashboard, error } = useDashboard();
@@ -38,6 +39,10 @@ export default function DashboardScreen() {
     <Button title="Services" onPress={() => router.push("/services")} />
     <Button title="Resources" onPress={() => router.push("/resources")} />
     <Button title="New Appointment" onPress={() => router.push("/appointments/new")} />
+
+    <Text style={{ fontSize: 20, fontWeight: "bold" }}>Calendar</Text>
+
+    <AppointmentCalendar appointments={dashboard.appointments ?? []} />
 
     <Text style={{ fontSize: 20, fontWeight: "bold" }}>Recent Clients</Text>
 
