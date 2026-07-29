@@ -48,7 +48,7 @@ export default function LoginScreen() {
       }}
     >
       <Text style={{ fontSize: 32, fontWeight: "bold" }}>
-        ServiceBook
+        Calrizzler
       </Text>
 
       <TextInput

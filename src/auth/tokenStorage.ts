@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const TOKEN_KEY = "servicebook_token";
+const TOKEN_KEY = "calrizzler_token";
 
 export function saveToken(token: string) {
   if (Platform.OS === "web") {
