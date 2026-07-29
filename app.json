@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "servicebook-mobile",
-    "slug": "servicebook-mobile",
+    "name": "calrizzler-mobile",
+    "slug": "calrizzler-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "servicebookmobile",
+    "scheme": "calrizzlermobile",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
