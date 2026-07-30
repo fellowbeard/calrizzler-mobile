@@ -18,6 +18,7 @@ export type Appointment = {
   scheduled_at: string;
   status: string;
   duration_minutes: number;
+  duration_overridden: boolean;
   blocking_reservation_time: string;
   uses_default_duration: boolean;
   services: Service[];

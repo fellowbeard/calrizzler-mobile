@@ -14,6 +14,7 @@ export type AppointmentFormValues = {
   scheduled_at: string;
   status: string;
   duration_minutes: number;
+  duration_overridden: boolean;
   service_ids: number[];
 };
 
@@ -61,7 +62,8 @@ export function AppointmentForm({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState("scheduled");
   const [durationMinutes, setDurationMinutes] = useState("");
-  const [hasManualDurationOverride, setHasManualDurationOverride] = useState(false);
+  const [hasManualDurationOverride, setHasManualDurationOverride] =
+    useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
   useEffect(() => {
@@ -82,56 +84,82 @@ export function AppointmentForm({
         : ""
     );
 
+    setHasManualDurationOverride(initialValues.duration_overridden ?? false);
+
     setSelectedServiceIds(
       initialValues.services?.map((service) => service.id) ?? []
     );
   }, [initialValues]);
 
-  useEffect(() => {
-    if (hasManualDurationOverride) return;
-
-    const totalDuration = services
-      .filter((service) => selectedServiceIds.includes(service.id))
+  function calculateServiceDuration(serviceIds: number[]) {
+    return services
+      .filter((service) => serviceIds.includes(service.id))
       .reduce(
         (total, service) => total + Number(service.duration_minutes || 0),
         0
       );
-
-    setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
-  }, [selectedServiceIds, services, hasManualDurationOverride]);
+  }
 
   function toggleService(serviceId: number) {
-    setSelectedServiceIds((currentIds) =>
-      currentIds.includes(serviceId)
-        ? currentIds.filter((id) => id !== serviceId)
-        : [...currentIds, serviceId]
-    );
+    const updatedServiceIds = selectedServiceIds.includes(serviceId)
+      ? selectedServiceIds.filter((id) => id !== serviceId)
+      : [...selectedServiceIds, serviceId];
+
+    setSelectedServiceIds(updatedServiceIds);
+
+    if (!hasManualDurationOverride) {
+      const totalDuration = calculateServiceDuration(updatedServiceIds);
+
+      setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
+    }
+  }
+
+  function handleUseServiceDuration() {
+    const totalDuration = calculateServiceDuration(selectedServiceIds);
+
+    setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
+
+    setHasManualDurationOverride(false);
   }
 
   function handleSubmit() {
-  const parsedDuration = Number(durationMinutes);
+    const parsedDuration = Number(durationMinutes);
+
     if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
       return;
     }
+
     onSubmit({
       client_id: Number(clientId),
       resource_id: resourceId ? Number(resourceId) : null,
       scheduled_at: scheduledAt.toISOString(),
       status,
       duration_minutes: parsedDuration,
+      duration_overridden: hasManualDurationOverride,
       service_ids: selectedServiceIds,
     });
   }
 
   const hasValidDuration =
-    Number.isFinite(Number(durationMinutes)) &&
-    Number(durationMinutes) > 0;
+    Number.isFinite(Number(durationMinutes)) && Number(durationMinutes) > 0;
+
+  const serviceDurationTotal = calculateServiceDuration(selectedServiceIds);
 
   return (
-    <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 40 }}>
+    <ScrollView
+      contentContainerStyle={{
+        gap: 12,
+        paddingBottom: 40,
+      }}
+    >
       <Text>Client</Text>
 
-      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+      <View
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+        }}
+      >
         <Picker
           selectedValue={clientId}
           onValueChange={(value) => {
@@ -158,7 +186,12 @@ export function AppointmentForm({
 
       <Text>Resource</Text>
 
-      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+      <View
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+        }}
+      >
         <Picker
           selectedValue={resourceId}
           onValueChange={(value) => setResourceId(String(value))}
@@ -198,7 +231,12 @@ export function AppointmentForm({
 
       <Text>Status</Text>
 
-      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+      <View
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+        }}
+      >
         <Picker
           selectedValue={status}
           onValueChange={(value) => setStatus(String(value))}
@@ -209,7 +247,7 @@ export function AppointmentForm({
         </Picker>
       </View>
 
-      <Text>Duration Minutes</Text>
+      <Text>Total Appointment Duration</Text>
 
       <TextInput
         placeholder="Total time in minutes"
@@ -219,22 +257,26 @@ export function AppointmentForm({
           setHasManualDurationOverride(true);
         }}
         keyboardType="number-pad"
-        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
+        style={{
+          borderWidth: 1,
+          padding: 12,
+          borderRadius: 8,
+        }}
       />
 
       {durationMinutes && Number(durationMinutes) > 0 ? (
-        <Text>
-          Total time: {formatDuration(Number(durationMinutes))}
-        </Text>
+        <Text>Total time: {formatDuration(Number(durationMinutes))}</Text>
       ) : null}
 
       {hasManualDurationOverride ? (
-        <Button
-          title="Use Service Duration"
-          onPress={() => {
-            setHasManualDurationOverride(false);
-          }}
-        />
+        <>
+          <Text>Service duration: {formatDuration(serviceDurationTotal)}</Text>
+
+          <Button
+            title="Use Service Duration"
+            onPress={handleUseServiceDuration}
+          />
+        </>
       ) : null}
 
       <Text>Services</Text>
