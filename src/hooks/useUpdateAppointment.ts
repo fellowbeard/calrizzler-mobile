@@ -4,11 +4,12 @@ import { apiFetch } from "@/api/client";
 import type { Appointment } from "@/types/appointment";
 
 export type UpdateAppointmentInput = {
-  client_id: number;
+  client_id: number | null;
   resource_id: number | null;
   scheduled_at: string;
   status: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
+  duration_overridden: boolean;
   service_ids: number[];
 };
 

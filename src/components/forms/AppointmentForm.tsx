@@ -72,7 +72,9 @@ export function AppointmentForm({
   useEffect(() => {
     if (!initialValues) return;
 
-    setClientId(String(initialValues.client_id ?? ""));
+    setClientId(
+      String(initialValues.client_id ?? initialValues.client?.id ?? "")
+    );
     setResourceId(String(initialValues.resource_id ?? ""));
     setScheduledAt(
       initialValues.scheduled_at
