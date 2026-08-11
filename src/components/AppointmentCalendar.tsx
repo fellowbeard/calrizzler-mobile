@@ -133,17 +133,24 @@ export function AppointmentCalendar({
                       ]}
                     >
                       <Text numberOfLines={1} style={styles.appointmentTime}>
-                        {new Date(
-                          appointment.scheduled_at,
-                        ).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                        {new Date(appointment.scheduled_at).toLocaleTimeString(
+                          [],
+                          {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }
+                        )}
                       </Text>
 
                       <Text numberOfLines={1} style={styles.appointmentClient}>
                         {appointment.client.first_name}{" "}
                         {appointment.client.last_name}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.appointmentResource}
+                      >
+                        {appointment.resource.name}
                       </Text>
                     </Pressable>
                   ))}
@@ -229,6 +236,9 @@ const styles = StyleSheet.create({
   appointmentTime: {
     fontSize: 9,
     fontWeight: "bold",
+  },
+  appointmentResource: {
+    fontSize: 9,
   },
   appointmentClient: {
     fontSize: 9,

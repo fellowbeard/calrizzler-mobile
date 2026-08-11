@@ -68,7 +68,7 @@ export default function AppointmentDetailScreen() {
         ))
       )}
       <Text style={{ fontSize: 20, marginTop: 16 }}>Resource</Text>
-      <Text>{appointment.resource?.name || "No resource"}</Text>
+      <Text>{appointment.resource?.name}</Text>
     </ScrollView>
   );
 }
