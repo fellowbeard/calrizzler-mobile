@@ -12,7 +12,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 export default function NewAppointmentScreen() {
   const { user } = useAuth();
   const { dashboard, error: dashboardError, isLoading } = useDashboard();
-  const { createAppointment, error: saveError, isSaving } = useCreateAppointment();
+  const { createAppointment, error: saveError, fieldErrors, isSaving } = useCreateAppointment();
 
   if (!canWrite(user)) {
     return <Redirect href="/appointments" />;
@@ -37,6 +37,7 @@ export default function NewAppointmentScreen() {
         submitLabel="Create Appointment"
         isSaving={isSaving}
         error={saveError}
+        fieldErrors={fieldErrors}
         onNewClient={() => router.push("/clients/new")}
         onSubmit={async (values) => {
           const appointment = await createAppointment(values);

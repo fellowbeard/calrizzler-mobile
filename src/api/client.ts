@@ -2,15 +2,43 @@ import { getToken } from "../auth/tokenStorage";
 
 const API_BASE_URL = "http://localhost:3000";
 
-export type ApiError = {
+export type ValidationErrorDetail = {
+  type: string;
+  message: string;
+};
+
+export type ValidationDetails = Record<string, ValidationErrorDetail[]>;
+
+export class ApiError extends Error {
   status: number;
   code: string;
-  message: string;
-  details: unknown;
-};
+  details?: ValidationDetails;
+
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: ValidationDetails
+  ) {
+    super(message);
+
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
 
 type ApiOptions = RequestInit & {
   auth?: boolean;
+};
+
+type ApiErrorResponse = {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: ValidationDetails;
+  };
 };
 
 export async function apiFetch<T = unknown>(
@@ -40,16 +68,14 @@ export async function apiFetch<T = unknown>(
   return data as T;
 }
 
-function buildApiError(response: Response, data: any): ApiError {
-  return {
-    status: response.status,
-    code: data?.error?.code || "request_failed",
-    message:
-      data?.error?.message ||
-      data?.error ||
-      data?.message ||
-      response.statusText ||
-      "Request failed.",
-    details: data?.error?.details || null,
-  };
+function buildApiError(
+  response: Response,
+  data: ApiErrorResponse | null
+): ApiError {
+  return new ApiError(
+    response.status,
+    data?.error?.code ?? "request_failed",
+    data?.error?.message ?? response.statusText ?? "Request failed.",
+    data?.error?.details
+  );
 }

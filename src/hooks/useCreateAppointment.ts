@@ -1,22 +1,25 @@
 import { useState } from "react";
 
-import { apiFetch, type ApiError } from "@/api/client";
+import {
+  ApiError,
+  apiFetch,
+  type ValidationDetails,
+} from "@/api/client";
 import type { Appointment } from "@/types/appointment";
 
 type CreateAppointmentInput = {
-  client_id: number;
-  resource_id?: number | null;
+  client_id: number | null;
+  resource_id: number | null;
   scheduled_at: string;
   status: string;
-  duration_minutes?: number;
+  duration_minutes: number | null;
+  duration_overridden: boolean;
   service_ids: number[];
 };
 
-type FieldErrors = Record<string, string[]>;
-
 export function useCreateAppointment() {
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<ValidationDetails>({});
   const [isSaving, setIsSaving] = useState(false);
 
   async function createAppointment(input: CreateAppointmentInput) {
@@ -32,16 +35,12 @@ export function useCreateAppointment() {
         }),
       });
     } catch (error) {
-      const apiError = error as ApiError;
-
-      setError(apiError.message || "Unable to create appointment.");
-
-      if (
-        apiError.details &&
-        typeof apiError.details === "object" &&
-        !Array.isArray(apiError.details)
-      ) {
-        setFieldErrors(apiError.details as FieldErrors);
+      if (error instanceof ApiError) {
+        setError(error.message);
+        setFieldErrors(error.details ?? {});
+      } else {
+        setError("Unable to create appointment.");
+        setFieldErrors({});
       }
 
       return null;

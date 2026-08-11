@@ -3,17 +3,18 @@ import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+import type { ValidationDetails } from "@/api/client";
 import type { Appointment } from "@/types/appointment";
 import type { Client } from "@/types/client";
 import type { Resource } from "@/types/resource";
 import type { Service } from "@/types/service";
 
 export type AppointmentFormValues = {
-  client_id: number;
+  client_id: number | null;
   resource_id: number | null;
   scheduled_at: string;
   status: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
   duration_overridden: boolean;
   service_ids: number[];
 };
@@ -25,6 +26,7 @@ type AppointmentFormProps = {
   services: Service[];
   submitLabel: string;
   isSaving: boolean;
+  fieldErrors?: ValidationDetails;
   error?: string;
   onNewClient: () => void;
   onSubmit: (values: AppointmentFormValues) => void | Promise<void>;
@@ -53,6 +55,7 @@ export function AppointmentForm({
   submitLabel,
   isSaving,
   error,
+  fieldErrors = {},
   onNewClient,
   onSubmit,
 }: AppointmentFormProps) {
@@ -118,19 +121,15 @@ export function AppointmentForm({
     const totalDuration = calculateServiceDuration(selectedServiceIds);
 
     setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
-
     setHasManualDurationOverride(false);
   }
 
   function handleSubmit() {
-    const parsedDuration = Number(durationMinutes);
-
-    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
-      return;
-    }
+    const parsedDuration =
+      durationMinutes === "" ? null : Number(durationMinutes);
 
     onSubmit({
-      client_id: Number(clientId),
+      client_id: clientId ? Number(clientId) : null,
       resource_id: resourceId ? Number(resourceId) : null,
       scheduled_at: scheduledAt.toISOString(),
       status,
@@ -139,9 +138,6 @@ export function AppointmentForm({
       service_ids: selectedServiceIds,
     });
   }
-
-  const hasValidDuration =
-    Number.isFinite(Number(durationMinutes)) && Number(durationMinutes) > 0;
 
   const serviceDurationTotal = calculateServiceDuration(selectedServiceIds);
 
@@ -184,6 +180,10 @@ export function AppointmentForm({
         </Picker>
       </View>
 
+      {fieldErrors.client?.map((error, index) => (
+        <Text key={index}>{error.message}</Text>
+      ))}
+
       <Text>Resource</Text>
 
       <View
@@ -208,6 +208,10 @@ export function AppointmentForm({
         </Picker>
       </View>
 
+      {fieldErrors.resource?.map((error, index) => (
+        <Text key={index}>Resource {error.message}</Text>
+      ))}
+
       <Text>Scheduled At</Text>
 
       <Button
@@ -229,6 +233,10 @@ export function AppointmentForm({
         />
       ) : null}
 
+      {fieldErrors.scheduled_at?.map((error, index) => (
+        <Text key={index}>{error.message}</Text>
+      ))}
+
       <Text>Status</Text>
 
       <View
@@ -247,6 +255,10 @@ export function AppointmentForm({
         </Picker>
       </View>
 
+      {fieldErrors.status?.map((error, index) => (
+        <Text key={index}>{error.message}</Text>
+      ))}
+
       <Text>Total Appointment Duration</Text>
 
       <TextInput
@@ -264,7 +276,7 @@ export function AppointmentForm({
         }}
       />
 
-      {durationMinutes && Number(durationMinutes) > 0 ? (
+      {durationMinutes !== "" && Number(durationMinutes) >= 0 ? (
         <Text>Total time: {formatDuration(Number(durationMinutes))}</Text>
       ) : null}
 
@@ -278,6 +290,10 @@ export function AppointmentForm({
           />
         </>
       ) : null}
+
+      {fieldErrors.duration_minutes?.map((error, index) => (
+        <Text key={index}>{error.message}</Text>
+      ))}
 
       <Text>Services</Text>
 
@@ -294,12 +310,16 @@ export function AppointmentForm({
         />
       ))}
 
+      {fieldErrors.services?.map((error, index) => (
+        <Text key={index}>{error.message}</Text>
+      ))}
+
       {error ? <Text>{error}</Text> : null}
 
       <Button
         title={isSaving ? "Saving..." : submitLabel}
         onPress={handleSubmit}
-        disabled={isSaving || !hasValidDuration}
+        disabled={isSaving}
       />
     </ScrollView>
   );
