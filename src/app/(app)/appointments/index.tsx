@@ -67,21 +67,15 @@ export default function AppointmentsScreen() {
                   : "No client"}
               </Text>
 
-              <Text>
-                Start Date: {formatDate(item.scheduled_at)}
-              </Text>
+              <Text>Start Date: {formatDate(item.scheduled_at)}</Text>
 
-              <Text>
-                Start Time: {formatTime(item.scheduled_at)}
-              </Text>
+              <Text>Start Time: {formatTime(item.scheduled_at)}</Text>
 
-              <Text>
-                End Date: {formatDate(endTime.toISOString())}
-              </Text>
+              <Text>End Date: {formatDate(endTime.toISOString())}</Text>
 
-              <Text>
-                End Time: {formatTime(endTime.toISOString())}
-              </Text>
+              <Text>End Time: {formatTime(endTime.toISOString())}</Text>
+
+              <Text>Resource: {item.resource.name}</Text>
 
               <Text>{item.status}</Text>
             </Pressable>
