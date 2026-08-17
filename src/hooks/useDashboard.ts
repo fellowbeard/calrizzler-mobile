@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
 
 import { apiFetch } from "../api/client";
 import type { DashboardData } from "../types/dashboard";
@@ -18,18 +19,18 @@ export function useDashboard() {
       setError("");
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to load dashboard.",
+        error instanceof Error ? error.message : "Unable to load dashboard."
       );
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboard();
+    }, [fetchDashboard])
+  );
 
   return {
     dashboard,
