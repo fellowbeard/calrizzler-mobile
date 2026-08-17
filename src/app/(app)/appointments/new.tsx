@@ -1,4 +1,4 @@
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
 
 import { canWrite } from "@/auth/permissions";
@@ -12,7 +12,15 @@ import { useDashboard } from "@/hooks/useDashboard";
 export default function NewAppointmentScreen() {
   const { user } = useAuth();
   const { dashboard, error: dashboardError, isLoading } = useDashboard();
-  const { createAppointment, error: saveError, fieldErrors, isSaving } = useCreateAppointment();
+  const {
+    createAppointment,
+    error: saveError,
+    fieldErrors,
+    isSaving,
+  } = useCreateAppointment();
+  const { clientId } = useLocalSearchParams<{
+    clientId?: string;
+  }>();
 
   if (!canWrite(user)) {
     return <Redirect href="/appointments" />;
@@ -31,6 +39,7 @@ export default function NewAppointmentScreen() {
       <Text style={{ fontSize: 28 }}>New Appointment</Text>
 
       <AppointmentForm
+        initialClientId={clientId}
         clients={dashboard.clients}
         resources={dashboard.resources}
         services={dashboard.services}
@@ -38,7 +47,14 @@ export default function NewAppointmentScreen() {
         isSaving={isSaving}
         error={saveError}
         fieldErrors={fieldErrors}
-        onNewClient={() => router.push("/clients/new")}
+        onNewClient={() =>
+          router.push({
+            pathname: "/clients/new",
+            params: {
+              fromAppointment: "true",
+            },
+          })
+        }
         onSubmit={async (values) => {
           const appointment = await createAppointment(values);
 

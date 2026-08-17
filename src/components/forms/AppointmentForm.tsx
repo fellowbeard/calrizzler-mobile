@@ -21,6 +21,7 @@ export type AppointmentFormValues = {
 
 type AppointmentFormProps = {
   initialValues?: Appointment | null;
+  initialClientId?: string;
   clients: Client[];
   resources: Resource[];
   services: Service[];
@@ -49,6 +50,7 @@ function formatDuration(minutes: number) {
 
 export function AppointmentForm({
   initialValues,
+  initialClientId = "",
   clients,
   resources,
   services,
@@ -59,7 +61,7 @@ export function AppointmentForm({
   onNewClient,
   onSubmit,
 }: AppointmentFormProps) {
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(initialClientId);
   const [resourceId, setResourceId] = useState("");
   const [scheduledAt, setScheduledAt] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -70,31 +72,32 @@ export function AppointmentForm({
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
   useEffect(() => {
-    if (!initialValues) return;
+    if (!initialValues && !initialClientId) return;
 
-    setClientId(
-      String(initialValues.client_id ?? initialValues.client?.id ?? "")
-    );
-    setResourceId(String(initialValues.resource_id ?? ""));
+    setClientId(String(initialValues?.client_id ?? initialClientId ?? ""));
+
+    setResourceId(String(initialValues?.resource_id ?? ""));
+
     setScheduledAt(
-      initialValues.scheduled_at
+      initialValues?.scheduled_at
         ? new Date(initialValues.scheduled_at)
         : new Date()
     );
-    setStatus(initialValues.status ?? "scheduled");
+
+    setStatus(initialValues?.status ?? "scheduled");
 
     setDurationMinutes(
-      initialValues.duration_minutes != null
+      initialValues?.duration_minutes != null
         ? String(initialValues.duration_minutes)
         : ""
     );
 
-    setHasManualDurationOverride(initialValues.duration_overridden ?? false);
+    setHasManualDurationOverride(initialValues?.duration_overridden ?? false);
 
     setSelectedServiceIds(
-      initialValues.services?.map((service) => service.id) ?? []
+      initialValues?.services?.map((service) => service.id) ?? []
     );
-  }, [initialValues]);
+  }, [initialValues, initialClientId]);
 
   function calculateServiceDuration(serviceIds: number[]) {
     return services
@@ -239,27 +242,31 @@ export function AppointmentForm({
         <Text key={index}>{error.message}</Text>
       ))}
 
-      <Text>Status</Text>
+      {initialValues ? (
+        <>
+          <Text>Status</Text>
 
-      <View
-        style={{
-          borderWidth: 1,
-          borderRadius: 8,
-        }}
-      >
-        <Picker
-          selectedValue={status}
-          onValueChange={(value) => setStatus(String(value))}
-        >
-          <Picker.Item label="Scheduled" value="scheduled" />
-          <Picker.Item label="Completed" value="completed" />
-          <Picker.Item label="Canceled" value="canceled" />
-        </Picker>
-      </View>
+          <View
+            style={{
+              borderWidth: 1,
+              borderRadius: 8,
+            }}
+          >
+            <Picker
+              selectedValue={status}
+              onValueChange={(value) => setStatus(String(value))}
+            >
+              <Picker.Item label="Scheduled" value="scheduled" />
+              <Picker.Item label="Completed" value="completed" />
+              <Picker.Item label="Canceled" value="canceled" />
+            </Picker>
+          </View>
 
-      {fieldErrors.status?.map((error, index) => (
-        <Text key={index}>{error.message}</Text>
-      ))}
+          {fieldErrors.status?.map((error, index) => (
+            <Text key={index}>{error.message}</Text>
+          ))}
+        </>
+      ) : null}
 
       <Text>Total Appointment Duration</Text>
 
