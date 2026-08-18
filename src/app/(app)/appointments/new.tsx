@@ -10,7 +10,7 @@ import { useCreateAppointment } from "@/hooks/useCreateAppointment";
 import { useDashboard } from "@/hooks/useDashboard";
 
 export default function NewAppointmentScreen() {
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const { dashboard, error: dashboardError, isLoading } = useDashboard();
   const {
     createAppointment,
@@ -34,11 +34,16 @@ export default function NewAppointmentScreen() {
     return <LoadingState message="Loading appointment form..." />;
   }
 
+  if (!account) {
+    return <LoadingState message="Loading account settings..." />;
+  }
+
   return (
     <View style={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>New Appointment</Text>
 
       <AppointmentForm
+        timezone={account.timezone}
         initialClientId={clientId}
         clients={dashboard.clients}
         resources={dashboard.resources}

@@ -4,4 +4,5 @@ export type Account = {
   id: number;
   business_name: string;
   resources: Resource[];
+  timezone: string;
 };

@@ -13,7 +13,6 @@ export default function ResourcesScreen() {
   const { user } = useAuth();
   const userCanWrite = canWrite(user);
 
-
   if (error) {
     return <ErrorState message={error} />;
   }
@@ -23,7 +22,7 @@ export default function ResourcesScreen() {
   }
 
   if (resources.length === 0) {
-    return <EmptyState message="No resources found." />;
+    return <EmptyState message="No resources yet." />;
   }
 
   return (

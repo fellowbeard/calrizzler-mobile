@@ -10,12 +10,13 @@ import { canWrite } from "@/auth/permissions";
 import {
   formatDate,
   formatTime,
+  formatTimezone,
   calculateEndTime,
 } from "@/utils/dateFormatting";
 
 export default function AppointmentsScreen() {
   const { appointments, error, isLoading } = useAppointments();
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const userCanWrite = canWrite(user);
 
   if (error) {
@@ -28,6 +29,10 @@ export default function AppointmentsScreen() {
 
   if (appointments.length === 0) {
     return <EmptyState message="No appointments found." />;
+  }
+
+  if (!account) {
+    return <LoadingState message="Loading account settings..." />;
   }
 
   return (
@@ -67,13 +72,23 @@ export default function AppointmentsScreen() {
                   : "No client"}
               </Text>
 
-              <Text>Start Date: {formatDate(item.scheduled_at)}</Text>
+              <Text>
+                Start Date: {formatDate(item.scheduled_at, account.timezone)}
+              </Text>
 
-              <Text>Start Time: {formatTime(item.scheduled_at)}</Text>
+              <Text>
+                Start Time: {formatTime(item.scheduled_at, account.timezone)} (
+                {formatTimezone(account.timezone)})
+              </Text>
 
-              <Text>End Date: {formatDate(endTime.toISOString())}</Text>
+              <Text>
+                End Date: {formatDate(endTime.toISOString(), account.timezone)}
+              </Text>
 
-              <Text>End Time: {formatTime(endTime.toISOString())}</Text>
+              <Text>
+                End Time: {formatTime(endTime.toISOString(), account.timezone)}{" "}
+                ({formatTimezone(account.timezone)})
+              </Text>
 
               <Text>Resource: {item.resource.name}</Text>
 

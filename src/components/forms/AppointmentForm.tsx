@@ -9,6 +9,13 @@ import type { Client } from "@/types/client";
 import type { Resource } from "@/types/resource";
 import type { Service } from "@/types/service";
 
+import {
+  appointmentToPickerDate,
+  currentTimeForPicker,
+  formatPickerDateTime,
+  pickerDateToScheduledAt,
+} from "@/utils/dateFormatting";
+
 export type AppointmentFormValues = {
   client_id: number | null;
   resource_id: number | null;
@@ -20,6 +27,7 @@ export type AppointmentFormValues = {
 };
 
 type AppointmentFormProps = {
+  timezone: string;
   initialValues?: Appointment | null;
   initialClientId?: string;
   clients: Client[];
@@ -49,6 +57,7 @@ function formatDuration(minutes: number) {
 }
 
 export function AppointmentForm({
+  timezone,
   initialValues,
   initialClientId = "",
   clients,
@@ -62,26 +71,33 @@ export function AppointmentForm({
   onSubmit,
 }: AppointmentFormProps) {
   const [clientId, setClientId] = useState(initialClientId);
+
   const [resourceId, setResourceId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState<Date>(new Date());
+
+  const [scheduledAt, setScheduledAt] = useState<Date>(() =>
+    currentTimeForPicker(timezone)
+  );
+
   const [showDatePicker, setShowDatePicker] = useState(false);
+
   const [status, setStatus] = useState("scheduled");
+
   const [durationMinutes, setDurationMinutes] = useState("");
+
   const [hasManualDurationOverride, setHasManualDurationOverride] =
     useState(false);
+
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
   useEffect(() => {
-    if (!initialValues && !initialClientId) return;
-
     setClientId(String(initialValues?.client_id ?? initialClientId ?? ""));
 
     setResourceId(String(initialValues?.resource_id ?? ""));
 
     setScheduledAt(
       initialValues?.scheduled_at
-        ? new Date(initialValues.scheduled_at)
-        : new Date()
+        ? appointmentToPickerDate(initialValues.scheduled_at, timezone)
+        : currentTimeForPicker(timezone)
     );
 
     setStatus(initialValues?.status ?? "scheduled");
@@ -97,7 +113,7 @@ export function AppointmentForm({
     setSelectedServiceIds(
       initialValues?.services?.map((service) => service.id) ?? []
     );
-  }, [initialValues, initialClientId]);
+  }, [initialValues, initialClientId, timezone]);
 
   function calculateServiceDuration(serviceIds: number[]) {
     return services
@@ -126,6 +142,7 @@ export function AppointmentForm({
     const totalDuration = calculateServiceDuration(selectedServiceIds);
 
     setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
+
     setHasManualDurationOverride(false);
   }
 
@@ -135,11 +152,17 @@ export function AppointmentForm({
 
     onSubmit({
       client_id: clientId ? Number(clientId) : null,
+
       resource_id: resourceId ? Number(resourceId) : null,
-      scheduled_at: scheduledAt.toISOString(),
+
+      scheduled_at: pickerDateToScheduledAt(scheduledAt),
+
       status,
+
       duration_minutes: parsedDuration,
+
       duration_overridden: hasManualDurationOverride,
+
       service_ids: selectedServiceIds,
     });
   }
@@ -173,6 +196,7 @@ export function AppointmentForm({
           }}
         >
           <Picker.Item label="+ New Client" value="new" />
+
           <Picker.Item label="Select a client" value="" />
 
           {clients.map((client) => (
@@ -220,9 +244,11 @@ export function AppointmentForm({
       <Text>Scheduled At</Text>
 
       <Button
-        title={scheduledAt.toLocaleString()}
+        title={formatPickerDateTime(scheduledAt)}
         onPress={() => setShowDatePicker(true)}
       />
+
+      <Text>Business timezone: {timezone}</Text>
 
       {showDatePicker ? (
         <DateTimePicker
@@ -257,7 +283,9 @@ export function AppointmentForm({
               onValueChange={(value) => setStatus(String(value))}
             >
               <Picker.Item label="Scheduled" value="scheduled" />
+
               <Picker.Item label="Completed" value="completed" />
+
               <Picker.Item label="Canceled" value="canceled" />
             </Picker>
           </View>

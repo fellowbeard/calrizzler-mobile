@@ -22,7 +22,7 @@ export default function ServicesScreen() {
   }
 
   if (services.length === 0) {
-    return <EmptyState message="No services found." />;
+    return <EmptyState message="No services yet." />;
   }
 
   return (
