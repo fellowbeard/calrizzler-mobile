@@ -4,14 +4,18 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Appointment } from "@/types/appointment";
 
+import { formatTime, getCalendarDateParts } from "@/utils/dateFormatting";
+
 type AppointmentCalendarProps = {
   appointments: Appointment[];
+  timezone: string;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function AppointmentCalendar({
   appointments,
+  timezone,
 }: AppointmentCalendarProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
@@ -25,7 +29,7 @@ export function AppointmentCalendar({
     const startingDayIndex = firstDayOfMonth.getDay();
     const daysInMonth = lastDayOfMonth.getDate();
 
-    const days: Array<Date | null> = [];
+    const days: (Date | null)[] = [];
 
     for (let index = 0; index < startingDayIndex; index += 1) {
       days.push(null);
@@ -56,12 +60,15 @@ export function AppointmentCalendar({
     }
 
     return appointments.filter((appointment) => {
-      const appointmentDate = new Date(appointment.scheduled_at);
+      const appointmentDate = getCalendarDateParts(
+        appointment.scheduled_at,
+        timezone
+      );
 
       return (
-        appointmentDate.getFullYear() === dayDate.getFullYear() &&
-        appointmentDate.getMonth() === dayDate.getMonth() &&
-        appointmentDate.getDate() === dayDate.getDate()
+        appointmentDate.year === dayDate.getFullYear() &&
+        appointmentDate.month === dayDate.getMonth() + 1 &&
+        appointmentDate.day === dayDate.getDate()
       );
     });
   }
@@ -133,13 +140,7 @@ export function AppointmentCalendar({
                       ]}
                     >
                       <Text numberOfLines={1} style={styles.appointmentTime}>
-                        {new Date(appointment.scheduled_at).toLocaleTimeString(
-                          [],
-                          {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          }
-                        )}
+                        {formatTime(appointment.scheduled_at, timezone)}
                       </Text>
 
                       <Text numberOfLines={1} style={styles.appointmentClient}>

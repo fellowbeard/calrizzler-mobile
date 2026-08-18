@@ -10,10 +10,11 @@ import {
   calculateEndTime,
   formatDate,
   formatTime,
+  formatTimezone,
 } from "@/utils/dateFormatting";
 
 export default function AppointmentDetailScreen() {
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const { id } = useLocalSearchParams();
   const { appointment, error, isLoading } = useAppointment(id);
 
@@ -34,36 +35,50 @@ export default function AppointmentDetailScreen() {
     appointment.duration_minutes
   );
 
+  if (!account) {
+    return <LoadingState message="Loading account settings..." />;
+  }
+
   return (
     <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>Appointment</Text>
       {canWrite(user) ? (
-      <Link href={`/appointments/${appointment.id}/edit`} asChild>
-      <Button title="Edit Appointment"/>
-          </Link>
-        ) : null}
+        <Link href={`/appointments/${appointment.id}/edit`} asChild>
+          <Button title="Edit Appointment" />
+        </Link>
+      ) : null}
       <Text>
         Client:{" "}
         {appointment.client
           ? `${appointment.client.first_name} ${appointment.client.last_name}`
           : "No client"}
       </Text>
-      <Text>Start Date: {formatDate(appointment.scheduled_at)}</Text>
-      <Text>Start Time: {formatTime(appointment.scheduled_at)}</Text>
-      <Text>End Date: {formatDate(endTime.toISOString())}</Text>
-      <Text>End Time: {formatTime(endTime.toISOString())}</Text>
-      <Text>Status: {appointment.status}</Text>
       <Text>
-        Duration: {appointment.duration_minutes} minutes
+        Start Date: {formatDate(appointment.scheduled_at, account.timezone)}
       </Text>
+
+      <Text>
+        Start Time: {formatTime(appointment.scheduled_at, account.timezone)} (
+        {formatTimezone(account.timezone)})
+      </Text>
+
+      <Text>
+        End Date: {formatDate(endTime.toISOString(), account.timezone)}
+      </Text>
+
+      <Text>
+        End Time: {formatTime(endTime.toISOString(), account.timezone)} (
+        {formatTimezone(account.timezone)})
+      </Text>
+      <Text>Status: {appointment.status}</Text>
+      <Text>Duration: {appointment.duration_minutes} minutes</Text>
       <Text style={{ fontSize: 20, marginTop: 16 }}>Services</Text>
       {appointment.services.length === 0 ? (
         <Text>No services.</Text>
       ) : (
         appointment.services.map((service) => (
           <Text key={service.id}>
-            {service.title} — ${service.price} —{" "}
-            {service.duration_minutes} min
+            {service.title} — ${service.price} — {service.duration_minutes} min
           </Text>
         ))
       )}

@@ -13,7 +13,7 @@ import { AppointmentForm } from "@/components/forms/AppointmentForm";
 
 export default function EditAppointmentScreen() {
   const { id } = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, account } = useAuth();
 
   const {
     appointment,
@@ -40,7 +40,9 @@ export default function EditAppointmentScreen() {
   if (appointmentError || dashboardError) {
     return (
       <ErrorState
-        message={appointmentError || dashboardError || "Could not load appointment."}
+        message={
+          appointmentError || dashboardError || "Could not load appointment."
+        }
       />
     );
   }
@@ -53,11 +55,16 @@ export default function EditAppointmentScreen() {
     return <EmptyState message="Appointment not found." />;
   }
 
+  if (!account) {
+    return <LoadingState message="Loading account settings..." />;
+  }
+
   return (
     <View style={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>Edit Appointment</Text>
 
       <AppointmentForm
+        timezone={account.timezone}
         initialValues={appointment}
         clients={dashboard.clients}
         onNewClient={() => router.push("/clients/new")}
