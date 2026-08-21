@@ -1,56 +1,219 @@
-# Welcome to your Expo app 👋
+# Calrizzler Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile application for **Calrizzler**, a scheduling and client-management platform for service-based businesses.
 
-## Get started
+The app provides mobile access to the same Calrizzler account, scheduling, client, service, and resource data used by the web application.
 
-1. Install dependencies
+## Tech Stack
 
-   ```bash
-   npm install
-   ```
+- React Native
+- Expo
+- TypeScript
+- Expo Router
+- React Navigation
+- Expo SecureStore
+- React Native Reanimated
+- React Native Safe Area Context
+- `@react-native-community/datetimepicker`
+- `@react-native-picker/picker`
 
-2. Start the app
+## Features
 
-   ```bash
-   npx expo start
-   ```
+### Authentication
 
-In the output, you'll find options to open the app in a
+The mobile application authenticates against the Calrizzler Rails API using JWTs.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Authentication tokens are stored using Expo SecureStore.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The shared API client retrieves the token and automatically adds it to protected requests:
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```http
+Authorization: Bearer <token>
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Public endpoints such as login can explicitly disable authentication.
 
-### Other setup steps
+### Navigation
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+The application uses Expo Router and drawer-based navigation.
 
-## Learn more
+Primary application areas include:
 
-To learn more about developing your project with Expo, look at the following resources:
+- Dashboard
+- Appointments
+- Clients
+- Services
+- Resources
+- Settings
+- Logout
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Dashboard
 
-## Join the community
+The mobile dashboard includes a calendar view for quickly viewing scheduled appointments.
 
-Join our community of developers creating universal apps.
+Appointments can be selected from the calendar to navigate to their details.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Appointments
+
+The mobile appointment workflow supports:
+
+- viewing appointments
+- creating appointments
+- editing appointments
+- selecting a client
+- selecting a resource
+- selecting multiple services
+- scheduling date and time
+- calculated appointment duration
+- manual duration overrides
+- appointment status
+
+New appointments default to a scheduled state.
+
+Status changes, including cancellation, are available when editing an existing appointment.
+
+### Clients
+
+Users can:
+
+- view clients
+- create clients
+- edit clients
+- select clients when scheduling appointments
+
+A new client can also be created directly from the appointment workflow and returned to the appointment form as the selected client.
+
+### Services
+
+Services can be selected when creating an appointment.
+
+The durations of selected services are combined to determine the default appointment duration.
+
+### Resources
+
+Resources represent whatever must be reserved for an appointment.
+
+Appointments display their assigned resource, and resource availability is enforced by the backend.
+
+### Permissions
+
+The application respects the authenticated user's role:
+
+```text
+owner
+staff
+read_only
+```
+
+Actions such as creating and editing records can be restricted based on write access.
+
+The Rails API remains responsible for enforcing authorization and account isolation.
+
+## API Client
+
+The application uses a shared `apiFetch` client for communication with the Rails API.
+
+The client handles:
+
+- API base URLs
+- SecureStore authentication tokens
+- bearer authentication
+- JSON responses
+- API errors
+- validation errors
+- non-JSON server failures
+
+Example:
+
+```ts
+apiFetch("/api/v1/me");
+```
+
+Public request:
+
+```ts
+apiFetch("/api/v1/login", {
+  method: "POST",
+  auth: false,
+});
+```
+
+## Testing
+
+The mobile application uses Jest for unit testing.
+
+API client tests use mocked network responses rather than making requests to a running Rails server.
+
+Tests verify behavior including:
+
+- retrieving stored authentication tokens
+- adding bearer authentication
+- omitting authentication for public requests
+- parsing successful responses
+- handling structured validation errors
+- creating `ApiError` instances for failed requests
+- handling server responses without JSON
+
+## Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start Expo:
+
+```bash
+npx expo start
+```
+
+From the Expo development environment, the application can be launched on a supported simulator, emulator, web browser, or development device.
+
+## Application Structure
+
+The application uses Expo Router's file-based routing.
+
+The project includes screens for resources such as:
+
+```text
+app/
+├── appointments/
+├── clients/
+├── resources/
+├── services/
+└── settings/
+```
+
+Reusable form components handle create and edit workflows for the application's primary resources.
+
+## Backend
+
+Calrizzler Mobile communicates with the Calrizzler Rails API.
+
+The backend is responsible for:
+
+- authentication
+- account isolation
+- authorization
+- clients
+- services
+- resources
+- appointments
+- notes
+- users
+- scheduling conflicts
+- validation
+
+The mobile app should not be considered the security boundary. All permissions and account ownership rules are enforced again by the API.
+
+## Current Development
+
+Current development is focused on:
+
+- appointment scheduling
+- calendar behavior
+- timezone handling
+- validation and API error handling
+- automated testing
+- keeping mobile behavior consistent with the web application
