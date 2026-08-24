@@ -68,30 +68,33 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 export default function AppLayout() {
   const { user } = useAuth();
 
-  const visibleRoutes = drawerRoutes.filter(
-    (route) => !("ownerOnly" in route) || user?.role === "owner"
-  );
-
   return (
     <ProtectedRoute>
       <Drawer drawerContent={(props) => <CustomDrawerContent {...props} />}>
-        {visibleRoutes.map((route) => (
-          <Drawer.Screen
-            key={route.name}
-            name={route.name}
-            options={{
-              title: route.title,
-              drawerLabel: route.title,
-            }}
-            listeners={({ navigation }) => ({
-              drawerItemPress: (event) => {
-                event.preventDefault();
-                navigation.closeDrawer();
-                router.replace(route.path);
-              },
-            })}
-          />
-        ))}
+        {drawerRoutes.map((route) => {
+          const isHidden =
+            "ownerOnly" in route && route.ownerOnly && user?.role !== "owner";
+
+          return (
+            <Drawer.Screen
+              key={route.name}
+              name={route.name}
+              options={{
+                title: route.title,
+                headerTitle: route.title,
+                drawerLabel: route.title,
+                drawerItemStyle: isHidden ? { display: "none" } : undefined,
+              }}
+              listeners={({ navigation }) => ({
+                drawerItemPress: (event) => {
+                  event.preventDefault();
+                  navigation.closeDrawer();
+                  router.replace(route.path);
+                },
+              })}
+            />
+          );
+        })}
       </Drawer>
     </ProtectedRoute>
   );
