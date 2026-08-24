@@ -40,23 +40,20 @@ const drawerRoutes = [
     name: "settings",
     title: "Settings",
     path: "/settings",
+    ownerOnly: true,
   },
 ] as const;
 
-function CustomDrawerContent(
-  props: DrawerContentComponentProps
-) {
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { signOut } = useAuth();
 
   async function handleLogout() {
     await signOut();
+    router.replace("/");
   }
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={{ flex: 1 }}
-    >
+    <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1 }}>
       <DrawerItemList {...props} />
 
       <DrawerItem
@@ -69,14 +66,16 @@ function CustomDrawerContent(
 }
 
 export default function AppLayout() {
+  const { user } = useAuth();
+
+  const visibleRoutes = drawerRoutes.filter(
+    (route) => !("ownerOnly" in route) || user?.role === "owner"
+  );
+
   return (
     <ProtectedRoute>
-      <Drawer
-        drawerContent={(props) => (
-          <CustomDrawerContent {...props} />
-        )}
-      >
-        {drawerRoutes.map((route) => (
+      <Drawer drawerContent={(props) => <CustomDrawerContent {...props} />}>
+        {visibleRoutes.map((route) => (
           <Drawer.Screen
             key={route.name}
             name={route.name}
