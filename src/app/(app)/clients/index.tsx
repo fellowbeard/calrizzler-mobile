@@ -12,16 +12,13 @@ export default function ClientsScreen() {
   const { clients, error, isLoading } = useClients();
   const { user } = useAuth();
   const userCanWrite = canWrite(user);
+
   if (error) {
     return <ErrorState message={error} />;
   }
 
   if (isLoading) {
     return <LoadingState message="Loading clients..." />;
-  }
-
-  if (clients.length === 0) {
-    return <EmptyState message="No clients yet." />;
   }
 
   return (
@@ -34,26 +31,31 @@ export default function ClientsScreen() {
           />
         </View>
       )}
-      <FlatList
-        data={clients}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 24 }}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/clients/${item.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Open client ${item.first_name} ${item.last_name}`}
-            style={{
-              padding: 16,
-              borderBottomWidth: 1,
-            }}
-          >
-            <Text>
-              {item.first_name} {item.last_name}
-            </Text>
-          </Pressable>
-        )}
-      />
+
+      {clients.length === 0 ? (
+        <EmptyState message="No clients yet." />
+      ) : (
+        <FlatList
+          data={clients}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 24 }}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => router.push(`/clients/${item.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open client ${item.first_name} ${item.last_name}`}
+              style={{
+                padding: 16,
+                borderBottomWidth: 1,
+              }}
+            >
+              <Text>
+                {item.first_name} {item.last_name}
+              </Text>
+            </Pressable>
+          )}
+        />
+      )}
     </View>
   );
 }
