@@ -27,10 +27,6 @@ export default function AppointmentsScreen() {
     return <LoadingState message="Finding appointments..." />;
   }
 
-  if (appointments.length === 0) {
-    return <EmptyState message="No appointments found." />;
-  }
-
   if (!account) {
     return <LoadingState message="Loading account settings..." />;
   }
@@ -46,57 +42,63 @@ export default function AppointmentsScreen() {
         </View>
       )}
 
-      <FlatList
-        data={appointments}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 24 }}
-        renderItem={({ item }) => {
-          const endTime = calculateEndTime(
-            item.scheduled_at,
-            item.duration_minutes
-          );
+      {appointments.length === 0 ? (
+        <EmptyState message="No appointments found." />
+      ) : (
+        <FlatList
+          data={appointments}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 24 }}
+          renderItem={({ item }) => {
+            const endTime = calculateEndTime(
+              item.scheduled_at,
+              item.duration_minutes
+            );
 
-          return (
-            <Pressable
-              onPress={() => router.push(`/appointments/${item.id}`)}
-              accessibilityRole="button"
-              accessibilityLabel={`Open appointment ${item.id}`}
-              style={{
-                padding: 16,
-                borderBottomWidth: 1,
-              }}
-            >
-              <Text style={{ fontSize: 18 }}>
-                {item.client
-                  ? `${item.client.first_name} ${item.client.last_name}`
-                  : "No client"}
-              </Text>
+            return (
+              <Pressable
+                onPress={() => router.push(`/appointments/${item.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Open appointment ${item.id}`}
+                style={{
+                  padding: 16,
+                  borderBottomWidth: 1,
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>
+                  {item.client
+                    ? `${item.client.first_name} ${item.client.last_name}`
+                    : "No client"}
+                </Text>
 
-              <Text>
-                Start Date: {formatDate(item.scheduled_at, account.timezone)}
-              </Text>
+                <Text>
+                  Start Date: {formatDate(item.scheduled_at, account.timezone)}
+                </Text>
 
-              <Text>
-                Start Time: {formatTime(item.scheduled_at, account.timezone)} (
-                {formatTimezone(account.timezone)})
-              </Text>
+                <Text>
+                  Start Time: {formatTime(item.scheduled_at, account.timezone)}{" "}
+                  ({formatTimezone(account.timezone)})
+                </Text>
 
-              <Text>
-                End Date: {formatDate(endTime.toISOString(), account.timezone)}
-              </Text>
+                <Text>
+                  End Date:{" "}
+                  {formatDate(endTime.toISOString(), account.timezone)}
+                </Text>
 
-              <Text>
-                End Time: {formatTime(endTime.toISOString(), account.timezone)}{" "}
-                ({formatTimezone(account.timezone)})
-              </Text>
+                <Text>
+                  End Time:{" "}
+                  {formatTime(endTime.toISOString(), account.timezone)} (
+                  {formatTimezone(account.timezone)})
+                </Text>
 
-              <Text>Resource: {item.resource.name}</Text>
+                <Text>Resource: {item.resource.name}</Text>
 
-              <Text>{item.status}</Text>
-            </Pressable>
-          );
-        }}
-      />
+                <Text>{item.status}</Text>
+              </Pressable>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -6,12 +6,12 @@ import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useResources } from "@/hooks/useResources";
 import { useAuth } from "@/auth/useAuth";
-import { canWrite } from "@/auth/permissions";
 
 export default function ResourcesScreen() {
   const { resources, error, isLoading } = useResources();
   const { user } = useAuth();
-  const userCanWrite = canWrite(user);
+
+  const isOwner = user?.role === "owner";
 
   if (error) {
     return <ErrorState message={error} />;
@@ -21,13 +21,9 @@ export default function ResourcesScreen() {
     return <LoadingState message="Loading resources..." />;
   }
 
-  if (resources.length === 0) {
-    return <EmptyState message="No resources yet." />;
-  }
-
   return (
     <View style={{ flex: 1 }}>
-      {userCanWrite && (
+      {isOwner && (
         <View style={{ padding: 24, paddingBottom: 0 }}>
           <Button
             title="New Resource"
@@ -35,21 +31,44 @@ export default function ResourcesScreen() {
           />
         </View>
       )}
-      <FlatList
-        data={resources}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 24 }}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/resources/${item.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Open resource ${item.name}`}
-            style={{ padding: 16, borderBottomWidth: 1 }}
-          >
-            <Text style={{ fontSize: 18 }}>{item.name}</Text>
-          </Pressable>
-        )}
-      />
+
+      {resources.length === 0 ? (
+        <EmptyState message="No resources yet." />
+      ) : (
+        <FlatList
+          data={resources}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={{ padding: 24 }}
+          renderItem={({ item }) => {
+            if (!isOwner) {
+              return (
+                <View
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 18 }}>{item.name}</Text>
+                </View>
+              );
+            }
+
+            return (
+              <Pressable
+                onPress={() => router.push(`/resources/${item.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Open resource ${item.name}`}
+                style={{
+                  padding: 16,
+                  borderBottomWidth: 1,
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>{item.name}</Text>
+              </Pressable>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }

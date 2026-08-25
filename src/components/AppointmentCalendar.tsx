@@ -1,26 +1,51 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import type { Appointment } from "@/types/appointment";
-
+import { apiFetch } from "@/api/client";
+import { useAuth } from "@/auth/useAuth";
 import { formatTime, getCalendarDateParts } from "@/utils/dateFormatting";
 
+type CalendarAppointment = {
+  id: number;
+  user_id: number;
+  user_name: string;
+  resource_id: number;
+  resource_name: string | null;
+  scheduled_at: string;
+  duration_minutes: number;
+};
+
 type AppointmentCalendarProps = {
-  appointments: Appointment[];
   timezone: string;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function AppointmentCalendar({
-  appointments,
-  timezone,
-}: AppointmentCalendarProps) {
+export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
+  const { user } = useAuth();
+
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
+  const [error, setError] = useState("");
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const fetchCalendar = useCallback(async () => {
+    try {
+      const data = await apiFetch<CalendarAppointment[]>("/api/v1/calendar");
+
+      setAppointments(data);
+      setError("");
+    } catch (requestError: any) {
+      setError(requestError.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCalendar();
+  }, [fetchCalendar]);
 
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(year, month, 1);
@@ -73,8 +98,22 @@ export function AppointmentCalendar({
     });
   }
 
+  function isOwnAppointment(appointment: CalendarAppointment) {
+    return appointment.user_id === user?.id;
+  }
+
+  function handleAppointmentPress(appointment: CalendarAppointment) {
+    if (!isOwnAppointment(appointment)) {
+      return;
+    }
+
+    router.push(`/appointments/${appointment.id}`);
+  }
+
   return (
     <View style={styles.container}>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <View style={styles.header}>
         <Pressable
           onPress={previousMonth}
@@ -126,35 +165,77 @@ export function AppointmentCalendar({
                 <>
                   <Text style={styles.dayNumber}>{dayDate.getDate()}</Text>
 
-                  {dayAppointments.slice(0, 2).map((appointment) => (
-                    <Pressable
-                      key={appointment.id}
-                      onPress={() =>
-                        router.push(`/appointments/${appointment.id}`)
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open appointment for ${appointment.client.first_name} ${appointment.client.last_name}`}
-                      style={({ pressed }) => [
-                        styles.appointment,
-                        pressed ? styles.appointmentPressed : undefined,
-                      ]}
-                    >
-                      <Text numberOfLines={1} style={styles.appointmentTime}>
-                        {formatTime(appointment.scheduled_at, timezone)}
-                      </Text>
+                  {dayAppointments.slice(0, 2).map((appointment) => {
+                    const ownAppointment = isOwnAppointment(appointment);
 
-                      <Text numberOfLines={1} style={styles.appointmentClient}>
-                        {appointment.client.first_name}{" "}
-                        {appointment.client.last_name}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={styles.appointmentResource}
+                    if (!ownAppointment) {
+                      return (
+                        <View key={appointment.id} style={styles.appointment}>
+                          <Text
+                            numberOfLines={1}
+                            style={styles.appointmentTime}
+                          >
+                            {formatTime(appointment.scheduled_at, timezone)}
+                          </Text>
+
+                          <Text
+                            numberOfLines={1}
+                            style={styles.appointmentClient}
+                          >
+                            {appointment.user_name}
+                          </Text>
+
+                          <Text
+                            numberOfLines={1}
+                            style={styles.appointmentResource}
+                          >
+                            {appointment.resource_name}
+                          </Text>
+
+                          <Text
+                            numberOfLines={1}
+                            style={styles.appointmentClient}
+                          >
+                            Busy
+                          </Text>
+                        </View>
+                      );
+                    }
+
+                    return (
+                      <Pressable
+                        key={appointment.id}
+                        onPress={() => handleAppointmentPress(appointment)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open your appointment at ${formatTime(
+                          appointment.scheduled_at,
+                          timezone
+                        )}`}
+                        style={({ pressed }) => [
+                          styles.appointment,
+                          pressed ? styles.appointmentPressed : undefined,
+                        ]}
                       >
-                        {appointment.resource.name}
-                      </Text>
-                    </Pressable>
-                  ))}
+                        <Text numberOfLines={1} style={styles.appointmentTime}>
+                          {formatTime(appointment.scheduled_at, timezone)}
+                        </Text>
+
+                        <Text
+                          numberOfLines={1}
+                          style={styles.appointmentClient}
+                        >
+                          {appointment.user_name}
+                        </Text>
+
+                        <Text
+                          numberOfLines={1}
+                          style={styles.appointmentResource}
+                        >
+                          {appointment.resource_name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
 
                   {dayAppointments.length > 2 ? (
                     <Text style={styles.moreAppointments}>
@@ -247,5 +328,8 @@ const styles = StyleSheet.create({
   moreAppointments: {
     fontSize: 9,
     fontWeight: "600",
+  },
+  error: {
+    color: "red",
   },
 });
