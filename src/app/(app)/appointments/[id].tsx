@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppointment } from "@/hooks/useAppointment";
+import { formatDuration } from "@/utils/durationFormatting";
 import {
   calculateEndTime,
   formatDate,
@@ -71,7 +72,9 @@ export default function AppointmentDetailScreen() {
         {formatTimezone(account.timezone)})
       </Text>
       <Text>Status: {appointment.status}</Text>
-      <Text>Duration: {appointment.duration_minutes} minutes</Text>
+      <Text>
+        Duration: {formatDuration(Number(appointment.duration_minutes))}
+      </Text>
       <Text style={{ fontSize: 20, marginTop: 16 }}>Services</Text>
       {appointment.services.length === 0 ? (
         <Text>No services.</Text>

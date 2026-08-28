@@ -6,6 +6,7 @@ import {
   DrawerItemList,
   type DrawerContentComponentProps,
 } from "expo-router/drawer";
+import { Pressable, Text } from "react-native";
 
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
 import { useAuth } from "@/auth/useAuth";
@@ -81,7 +82,34 @@ export default function AppLayout() {
               name={route.name}
               options={{
                 title: route.title,
-                headerTitle: route.title,
+                headerTitle: () => {
+                  const isSectionIndex = [
+                    "appointments",
+                    "clients",
+                    "services",
+                    "resources",
+                  ].includes(route.name);
+
+                  if (!isSectionIndex) {
+                    return (
+                      <Text style={{ fontSize: 17, fontWeight: "600" }}>
+                        {route.title}
+                      </Text>
+                    );
+                  }
+
+                  return (
+                    <Pressable
+                      onPress={() => router.replace(route.path)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Go to ${route.title}`}
+                    >
+                      <Text style={{ fontSize: 17, fontWeight: "600" }}>
+                        {route.title}
+                      </Text>
+                    </Pressable>
+                  );
+                },
                 drawerLabel: route.title,
                 drawerItemStyle: isHidden ? { display: "none" } : undefined,
               }}

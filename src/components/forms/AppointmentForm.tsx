@@ -15,6 +15,7 @@ import {
   formatPickerDateTime,
   pickerDateToScheduledAt,
 } from "@/utils/dateFormatting";
+import { formatDuration } from "@/utils/durationFormatting";
 
 export type AppointmentFormValues = {
   client_id: number | null;
@@ -41,21 +42,6 @@ type AppointmentFormProps = {
   onSubmit: (values: AppointmentFormValues) => void | Promise<void>;
 };
 
-function formatDuration(minutes: number) {
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-
-  if (hours === 0) {
-    return `${remainingMinutes} min`;
-  }
-
-  if (remainingMinutes === 0) {
-    return `${hours} hr`;
-  }
-
-  return `${hours} hr ${remainingMinutes} min`;
-}
-
 export function AppointmentForm({
   timezone,
   initialValues,
@@ -71,7 +57,6 @@ export function AppointmentForm({
   onSubmit,
 }: AppointmentFormProps) {
   const [clientId, setClientId] = useState(initialClientId);
-
   const [resourceId, setResourceId] = useState("");
 
   const [scheduledAt, setScheduledAt] = useState<Date>(() =>
@@ -79,14 +64,10 @@ export function AppointmentForm({
   );
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-
   const [status, setStatus] = useState("scheduled");
-
   const [durationMinutes, setDurationMinutes] = useState("");
-
   const [hasManualDurationOverride, setHasManualDurationOverride] =
     useState(false);
-
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
 
   useEffect(() => {
@@ -142,7 +123,6 @@ export function AppointmentForm({
     const totalDuration = calculateServiceDuration(selectedServiceIds);
 
     setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
-
     setHasManualDurationOverride(false);
   }
 
@@ -152,17 +132,11 @@ export function AppointmentForm({
 
     onSubmit({
       client_id: clientId ? Number(clientId) : null,
-
       resource_id: resourceId ? Number(resourceId) : null,
-
       scheduled_at: pickerDateToScheduledAt(scheduledAt),
-
       status,
-
       duration_minutes: parsedDuration,
-
       duration_overridden: hasManualDurationOverride,
-
       service_ids: selectedServiceIds,
     });
   }
@@ -196,7 +170,6 @@ export function AppointmentForm({
           }}
         >
           <Picker.Item label="+ New Client" value="new" />
-
           <Picker.Item label="Select a client" value="" />
 
           {clients.map((client) => (
@@ -283,9 +256,7 @@ export function AppointmentForm({
               onValueChange={(value) => setStatus(String(value))}
             >
               <Picker.Item label="Scheduled" value="scheduled" />
-
               <Picker.Item label="Completed" value="completed" />
-
               <Picker.Item label="Canceled" value="canceled" />
             </Picker>
           </View>
@@ -302,10 +273,11 @@ export function AppointmentForm({
         placeholder="Total time in minutes"
         value={durationMinutes}
         onChangeText={(value) => {
-          setDurationMinutes(value);
+          setDurationMinutes(value.replace(/\D/g, ""));
           setHasManualDurationOverride(true);
         }}
         keyboardType="number-pad"
+        inputMode="numeric"
         style={{
           borderWidth: 1,
           padding: 12,
@@ -334,18 +306,26 @@ export function AppointmentForm({
 
       <Text>Services</Text>
 
-      {services.map((service) => (
-        <Button
-          key={service.id}
-          title={
-            selectedServiceIds.includes(service.id)
-              ? `✓ ${service.title} — ${service.duration_minutes} min`
-              : `${service.title} — ${service.duration_minutes} min`
-          }
-          onPress={() => toggleService(service.id)}
-          color={selectedServiceIds.includes(service.id) ? "#444" : undefined}
-        />
-      ))}
+      {services.map((service) => {
+        const isSelected = selectedServiceIds.includes(service.id);
+
+        return (
+          <Button
+            key={service.id}
+            title={
+              isSelected
+                ? `✓ ${service.title} — ${formatDuration(
+                    Number(service.duration_minutes)
+                  )}`
+                : `${service.title} — ${formatDuration(
+                    Number(service.duration_minutes)
+                  )}`
+            }
+            onPress={() => toggleService(service.id)}
+            color={isSelected ? "#444" : undefined}
+          />
+        );
+      })}
 
       {fieldErrors.services?.map((error, index) => (
         <Text key={index}>{error.message}</Text>

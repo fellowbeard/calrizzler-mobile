@@ -2,6 +2,7 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { Button, ScrollView, Text } from "react-native";
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
+import { formatDuration } from "@/utils/durationFormatting";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -36,7 +37,7 @@ export default function ServiceDetailScreen() {
       ) : null}
 
       <Text>Price: ${service.price}</Text>
-      <Text>Duration: {service.duration_minutes} minutes</Text>
+      <Text>Duration: {formatDuration(Number(service.duration_minutes))}</Text>
 
       <Text style={{ fontSize: 20, marginTop: 16 }}>Description</Text>
       <Text>{service.description || "No description"}</Text>

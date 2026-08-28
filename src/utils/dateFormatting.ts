@@ -6,6 +6,16 @@ type DateParts = {
   minute: number;
 };
 
+export const TIMEZONE_OPTIONS = [
+  { label: "EST", value: "America/New_York" },
+  { label: "CST", value: "America/Chicago" },
+  { label: "MST", value: "America/Denver" },
+  { label: "PST", value: "America/Los_Angeles" },
+  { label: "Arizona", value: "America/Phoenix" },
+  { label: "HST", value: "Pacific/Honolulu" },
+  { label: "AKST", value: "America/Anchorage" },
+];
+
 function getDatePartsInTimezone(
   dateString: string,
   timezone: string

@@ -29,8 +29,6 @@ export default function ResourceDetailScreen() {
       <Link href={`/resources/${resource.id}/edit`} asChild>
         <Button title="Edit Resource" />
       </Link>
-
-      <Text>Resource ID: {resource.id}</Text>
     </ScrollView>
   );
 }
