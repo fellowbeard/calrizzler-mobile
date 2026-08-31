@@ -7,7 +7,7 @@ import { useAuth } from "@/auth/useAuth";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useResource } from "@/hooks/useResource";
-import { useUpdateResource } from "@/hooks/useUpdateResource"
+import { useUpdateResource } from "@/hooks/useUpdateResource";
 import { ResourceForm } from "@/components/forms/ResourceForm";
 
 export default function EditResourceScreen() {
@@ -33,7 +33,7 @@ export default function EditResourceScreen() {
 
   return (
     <View style={{ padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 28 }}>Edit Service</Text>
+      <Text style={{ fontSize: 28 }}>Edit Resource</Text>
 
       <ResourceForm
         initialValues={resource}
