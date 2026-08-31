@@ -1,12 +1,13 @@
 import { router } from "expo-router";
 import { FlatList, Pressable, Text, View, Button } from "react-native";
 
+import { canWrite } from "@/auth/permissions";
+import { useAuth } from "@/auth/useAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { useServices } from "@/hooks/useServices";
-import { useAuth } from "@/auth/useAuth";
-import { canWrite } from "@/auth/permissions";
+import { formatDuration } from "@/utils/durationFormatting";
 
 export default function ServicesScreen() {
   const { services, error, isLoading } = useServices();
@@ -37,19 +38,20 @@ export default function ServicesScreen() {
       ) : (
         <FlatList
           data={services}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(service) => String(service.id)}
           contentContainerStyle={{ padding: 24 }}
-          renderItem={({ item }) => (
+          renderItem={({ item: service }) => (
             <Pressable
-              onPress={() => router.push(`/services/${item.id}`)}
+              onPress={() => router.push(`/services/${service.id}`)}
               accessibilityRole="button"
-              accessibilityLabel={`Open service ${item.title}`}
+              accessibilityLabel={`Open service ${service.title}`}
               style={{ padding: 16, borderBottomWidth: 1 }}
             >
-              <Text style={{ fontSize: 18 }}>{item.title}</Text>
+              <Text style={{ fontSize: 18 }}>{service.title}</Text>
 
               <Text>
-                ${item.price} — {item.duration_minutes} min
+                ${service.price} —{" "}
+                {formatDuration(Number(service.duration_minutes))}
               </Text>
             </Pressable>
           )}
