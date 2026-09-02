@@ -52,10 +52,7 @@ export default function DashboardScreen() {
 
       <Text style={{ fontSize: 20, fontWeight: "bold" }}>Calendar</Text>
 
-      <AppointmentCalendar
-        appointments={dashboard.appointments ?? []}
-        timezone={account.timezone}
-      />
+      <AppointmentCalendar timezone={account.timezone} />
 
       <Text style={{ fontSize: 20, fontWeight: "bold" }}>Recent Clients</Text>
 
