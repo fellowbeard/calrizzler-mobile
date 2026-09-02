@@ -71,6 +71,10 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
     return days;
   }, [month, year]);
 
+  const todayParts = useMemo(() => {
+    return getCalendarDateParts(new Date().toISOString(), timezone);
+  }, [timezone]);
+
   function previousMonth() {
     setCurrentDate(new Date(year, month - 1, 1));
   }
@@ -96,6 +100,34 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
         appointmentDate.day === dayDate.getDate()
       );
     });
+  }
+
+  function isToday(dayDate: Date | null) {
+    if (!dayDate) {
+      return false;
+    }
+
+    return (
+      dayDate.getFullYear() === todayParts.year &&
+      dayDate.getMonth() + 1 === todayParts.month &&
+      dayDate.getDate() === todayParts.day
+    );
+  }
+
+  function isPastDay(dayDate: Date | null) {
+    if (!dayDate) {
+      return false;
+    }
+
+    const dayValue =
+      dayDate.getFullYear() * 10000 +
+      (dayDate.getMonth() + 1) * 100 +
+      dayDate.getDate();
+
+    const todayValue =
+      todayParts.year * 10000 + todayParts.month * 100 + todayParts.day;
+
+    return dayValue < todayValue;
   }
 
   function isOwnAppointment(appointment: CalendarAppointment) {
@@ -152,6 +184,8 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
       <View style={styles.calendarGrid}>
         {calendarDays.map((dayDate, index) => {
           const dayAppointments = appointmentsForDay(dayDate);
+          const dayIsToday = isToday(dayDate);
+          const dayIsPast = isPastDay(dayDate);
 
           return (
             <View
@@ -159,18 +193,34 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
               style={[
                 styles.dayCell,
                 !dayDate ? styles.emptyDayCell : undefined,
+                dayIsPast ? styles.pastDayCell : undefined,
+                dayIsToday ? styles.todayCell : undefined,
               ]}
             >
               {dayDate ? (
                 <>
-                  <Text style={styles.dayNumber}>{dayDate.getDate()}</Text>
+                  <Text
+                    style={[
+                      styles.dayNumber,
+                      dayIsPast ? styles.pastDayNumber : undefined,
+                      dayIsToday ? styles.todayDayNumber : undefined,
+                    ]}
+                  >
+                    {dayDate.getDate()}
+                  </Text>
 
                   {dayAppointments.slice(0, 2).map((appointment) => {
                     const ownAppointment = isOwnAppointment(appointment);
 
                     if (!ownAppointment) {
                       return (
-                        <View key={appointment.id} style={styles.appointment}>
+                        <View
+                          key={appointment.id}
+                          style={[
+                            styles.appointment,
+                            dayIsPast ? styles.pastAppointment : undefined,
+                          ]}
+                        >
                           <Text
                             numberOfLines={1}
                             style={styles.appointmentTime}
@@ -213,6 +263,7 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
                         )}`}
                         style={({ pressed }) => [
                           styles.appointment,
+                          dayIsPast ? styles.pastAppointment : undefined,
                           pressed ? styles.appointmentPressed : undefined,
                         ]}
                       >
@@ -301,10 +352,24 @@ const styles = StyleSheet.create({
   emptyDayCell: {
     opacity: 0.3,
   },
+  pastDayCell: {
+    backgroundColor: "#f2f2f2",
+  },
+  todayCell: {
+    backgroundColor: "#e8f0fe",
+    borderWidth: 2,
+  },
   dayNumber: {
     fontSize: 12,
     fontWeight: "bold",
     marginBottom: 3,
+  },
+  pastDayNumber: {
+    color: "#888",
+  },
+  todayDayNumber: {
+    fontSize: 14,
+    fontWeight: "900",
   },
   appointment: {
     borderRadius: 4,
@@ -324,6 +389,10 @@ const styles = StyleSheet.create({
   },
   appointmentClient: {
     fontSize: 9,
+  },
+  pastAppointment: {
+    backgroundColor: "#d9d9d9",
+    opacity: 0.65,
   },
   moreAppointments: {
     fontSize: 9,
