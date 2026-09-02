@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 
-import { apiFetch } from "@/api/client";
+import { ApiError, apiFetch } from "@/api/client";
 import type { Account } from "@/types/account";
 import type { User } from "@/types/user";
 
@@ -65,10 +65,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         console.error("Failed to restore session:", error);
 
-        await removeToken();
-        setToken(null);
-        setUser(null);
-        setAccount(null);
+        if (error instanceof ApiError && error.status === 401) {
+          await removeToken();
+          setToken(null);
+          setUser(null);
+          setAccount(null);
+        }
       } finally {
         setIsLoading(false);
       }
