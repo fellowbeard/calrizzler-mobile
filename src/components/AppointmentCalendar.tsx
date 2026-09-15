@@ -277,7 +277,7 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
                             numberOfLines={1}
                             style={styles.appointmentClient}
                           >
-                            Busy
+                            Taken
                           </Text>
                         </View>
                       );
