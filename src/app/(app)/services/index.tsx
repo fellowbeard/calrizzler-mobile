@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { FlatList, Pressable, Text, View, Button } from "react-native";
 
-import { canWrite } from "@/auth/permissions";
+import { isOwner } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -12,7 +12,7 @@ import { formatDuration } from "@/utils/durationFormatting";
 export default function ServicesScreen() {
   const { services, error, isLoading } = useServices();
   const { user } = useAuth();
-  const userCanWrite = canWrite(user);
+  const userCanWrite = isOwner(user);
 
   if (error) {
     return <ErrorState message={error} />;

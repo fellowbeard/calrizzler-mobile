@@ -1,7 +1,7 @@
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
 
-import { canWrite } from "@/auth/permissions";
+import { isOwner } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -16,7 +16,7 @@ export default function EditServiceScreen() {
   const { service, error: loadError, isLoading } = useService(id);
   const { updateService, error: saveError, isSaving } = useUpdateService(id);
 
-  if (!canWrite(user)) {
+  if (!isOwner(user)) {
     return <Redirect href="/services" />;
   }
 

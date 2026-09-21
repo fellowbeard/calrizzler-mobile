@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { Text, View } from "react-native";
 
-import { canWrite } from "@/auth/permissions";
+import { isOwner } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { ServiceForm } from "@/components/forms/ServiceForm";
 import { useCreateService } from "@/hooks/useCreateService";
@@ -10,7 +10,7 @@ export default function NewServiceScreen() {
   const { user } = useAuth();
   const { createService, error, isSaving } = useCreateService();
 
-  if (!canWrite(user)) {
+  if (!isOwner(user)) {
     return <Redirect href="/services" />;
   }
 

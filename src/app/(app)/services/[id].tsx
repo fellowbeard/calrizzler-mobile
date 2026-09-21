@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams } from "expo-router";
 import { Button, ScrollView, Text } from "react-native";
-import { canWrite } from "@/auth/permissions";
+import { isOwner } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { formatDuration } from "@/utils/durationFormatting";
 
@@ -30,7 +30,7 @@ export default function ServiceDetailScreen() {
     <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 28 }}>{service.title}</Text>
 
-      {canWrite(user) ? (
+      {isOwner(user) ? (
         <Link href={`/services/${service.id}/edit`} asChild>
           <Button title="Edit Service" />
         </Link>
