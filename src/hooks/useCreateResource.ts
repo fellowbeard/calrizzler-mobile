@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { Resource } from "@/types/resource";
 
 type CreateResourceInput = {
@@ -23,7 +23,31 @@ export function useCreateResource() {
         }),
       });
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to create resource.");
+      if (error instanceof ApiError) {
+        const nameErrors = error.details?.name;
+
+        if (nameErrors?.length) {
+          setError(
+            nameErrors
+              .map((entry) => {
+                const message =
+                  typeof entry === "string" ? entry : entry.message;
+
+                return message === "has already been taken"
+                  ? "A resource with this name already exists."
+                  : `Resource name ${message}.`;
+              })
+              .join(" ")
+          );
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError(
+          error instanceof Error ? error.message : "Unable to create resource."
+        );
+      }
+
       return null;
     } finally {
       setIsSaving(false);

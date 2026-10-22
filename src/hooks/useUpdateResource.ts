@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { Resource } from "@/types/resource";
 
 type UpdateResourceInput = {
@@ -22,19 +22,41 @@ export function useUpdateResource(id: string | string[] | undefined) {
     setError(undefined);
 
     try {
-      const updatedResource = await apiFetch<Resource>(`/api/v1/resources/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          resource: values,
-        }),
-      });
+      const updatedResource = await apiFetch<Resource>(
+        `/api/v1/resources/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            resource: values,
+          }),
+        }
+      );
 
       setResource(updatedResource);
       return updatedResource;
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not update resource."
-      );
+      if (err instanceof ApiError) {
+        const nameErrors = err.details?.name;
+
+        if (nameErrors?.length) {
+          setError(
+            nameErrors
+              .map(({ message }) =>
+                message === "has already been taken"
+                  ? "A resource with this name already exists."
+                  : `Resource name ${message}.`
+              )
+              .join(" ")
+          );
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Could not update resource."
+        );
+      }
+
       return null;
     } finally {
       setIsSaving(false);

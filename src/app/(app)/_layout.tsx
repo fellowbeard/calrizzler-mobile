@@ -39,7 +39,7 @@ const drawerRoutes = [
   },
   {
     name: "settings",
-    title: "Settings",
+    title: "Account Settings",
     path: "/settings",
     ownerOnly: true,
   },

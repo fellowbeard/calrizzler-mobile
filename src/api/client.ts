@@ -37,7 +37,7 @@ type ApiErrorResponse = {
   error?: {
     code?: string;
     message?: string;
-    details?: ValidationDetails;
+    details?: Record<string, (string | ValidationErrorDetail)[]>;
   };
 };
 
@@ -76,6 +76,21 @@ function buildApiError(
     response.status,
     data?.error?.code ?? "request_failed",
     data?.error?.message ?? response.statusText ?? "Request failed.",
-    data?.error?.details
+    normalizeValidationDetails(data?.error?.details)
+  );
+}
+
+function normalizeValidationDetails(
+  details: Record<string, (string | ValidationErrorDetail)[]> | undefined
+): ValidationDetails | undefined {
+  if (!details) return undefined;
+
+  return Object.fromEntries(
+    Object.entries(details).map(([field, errors]) => [
+      field,
+      errors.map((error) =>
+        typeof error === "string" ? { type: "invalid", message: error } : error
+      ),
+    ])
   );
 }

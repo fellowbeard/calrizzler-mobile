@@ -331,7 +331,11 @@ export function AppointmentForm({
         <Text key={index}>{error.message}</Text>
       ))}
 
-      {error ? <Text>{error}</Text> : null}
+      {error &&
+      (error !== "Validation failed." ||
+        Object.keys(fieldErrors).length === 0) ? (
+        <Text>{error}</Text>
+      ) : null}
 
       <Button
         title={isSaving ? "Saving..." : submitLabel}

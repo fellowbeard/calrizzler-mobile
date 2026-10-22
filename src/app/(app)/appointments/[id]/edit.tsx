@@ -30,6 +30,7 @@ export default function EditAppointmentScreen() {
   const {
     updateAppointment,
     error: saveError,
+    fieldErrors,
     isSaving,
   } = useUpdateAppointment(id);
 
@@ -73,6 +74,7 @@ export default function EditAppointmentScreen() {
         submitLabel="Save Changes"
         isSaving={isSaving}
         error={saveError}
+        fieldErrors={fieldErrors}
         onSubmit={async (values) => {
           const updatedAppointment = await updateAppointment(values);
 
