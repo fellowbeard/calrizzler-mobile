@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { apiFetch } from "@/api/client";
+import { ApiError, apiFetch, type ValidationDetails } from "@/api/client";
 import type { Appointment } from "@/types/appointment";
 
 export type UpdateAppointmentInput = {
@@ -16,16 +16,19 @@ export type UpdateAppointmentInput = {
 export function useUpdateAppointment(id: string | string[] | undefined) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [error, setError] = useState<string>();
+  const [fieldErrors, setFieldErrors] = useState<ValidationDetails>({});
   const [isSaving, setIsSaving] = useState(false);
 
   async function updateAppointment(values: UpdateAppointmentInput) {
     if (!id || Array.isArray(id)) {
       setError("Invalid appointment id.");
+      setFieldErrors({});
       return null;
     }
 
     setIsSaving(true);
     setError(undefined);
+    setFieldErrors({});
 
     try {
       const updatedAppointment = await apiFetch<Appointment>(
@@ -41,9 +44,16 @@ export function useUpdateAppointment(id: string | string[] | undefined) {
       setAppointment(updatedAppointment);
       return updatedAppointment;
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not update appointment."
-      );
+      if (err instanceof ApiError) {
+        setError(err.message);
+        setFieldErrors(err.details ?? {});
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Could not update appointment."
+        );
+        setFieldErrors({});
+      }
+
       return null;
     } finally {
       setIsSaving(false);
@@ -54,6 +64,7 @@ export function useUpdateAppointment(id: string | string[] | undefined) {
     appointment,
     updateAppointment,
     error,
+    fieldErrors,
     isSaving,
   };
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, ApiError } from "@/api/client";
 import type { Service } from "@/types/service";
 
 type CreateServiceInput = {
@@ -31,11 +31,33 @@ export function useCreateService() {
         }),
       });
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to create service."
-      );
+      if (error instanceof ApiError) {
+        const titleErrors = error.details?.title;
+
+        if (titleErrors?.length) {
+          setError(
+            titleErrors
+              .map(({ message }) => {
+                if (message === "has already been taken") {
+                  return "A service with that name already exists.";
+                }
+
+                if (message === "can't be blank") {
+                  return "Service name can't be blank.";
+                }
+
+                return `Service name ${message}.`;
+              })
+              .join(" ")
+          );
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError(
+          error instanceof Error ? error.message : "Unable to create service."
+        );
+      }
 
       return null;
     } finally {

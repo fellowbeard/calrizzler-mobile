@@ -47,9 +47,7 @@ export default function LoginScreen() {
         gap: 16,
       }}
     >
-      <Text style={{ fontSize: 32, fontWeight: "bold" }}>
-        Calrizzler
-      </Text>
+      <Text style={{ fontSize: 32, fontWeight: "bold" }}>Calrizzler</Text>
 
       <TextInput
         placeholder="Email"
@@ -82,6 +80,11 @@ export default function LoginScreen() {
         title={isLoading ? "Logging in..." : "Log In"}
         onPress={handleLogin}
         disabled={isLoading}
+      />
+
+      <Button
+        title="Forgot Password?"
+        onPress={() => router.push("/forgot-password")}
       />
     </View>
   );

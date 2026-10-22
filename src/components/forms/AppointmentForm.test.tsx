@@ -39,7 +39,6 @@ describe("AppointmentForm", () => {
         services={[
           {
             id: 2,
-            user_id: 10,
             title: "Consultation",
             price: 100,
             duration_minutes: 45,
@@ -55,7 +54,9 @@ describe("AppointmentForm", () => {
 
     fireEvent.press(getByRole("button", { name: /Consultation/ }));
 
-    await waitFor(() => expect(getByText("Total time: 45 min")).toBeTruthy());
+    await waitFor(() =>
+      expect(getByText("Total time: 45 minutes")).toBeTruthy()
+    );
 
     fireEvent.press(getByRole("button", { name: "Create Appointment" }));
 
