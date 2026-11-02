@@ -18,8 +18,9 @@ export default function NewAppointmentScreen() {
     fieldErrors,
     isSaving,
   } = useCreateAppointment();
-  const { clientId } = useLocalSearchParams<{
+  const { clientId, returnTo } = useLocalSearchParams<{
     clientId?: string;
+    returnTo?: string;
   }>();
 
   if (!canWrite(user)) {
@@ -64,7 +65,11 @@ export default function NewAppointmentScreen() {
           const appointment = await createAppointment(values);
 
           if (appointment) {
-            router.replace(`/appointments/${appointment.id}`);
+            if (returnTo === "dashboard") {
+              router.replace("/dashboard");
+            } else {
+              router.replace(`/appointments/${appointment.id}`);
+            }
           }
         }}
       />

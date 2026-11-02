@@ -1,9 +1,10 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { apiFetch } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
+import { formatDuration } from "@/utils/durationFormatting";
 import { formatTime, getCalendarDateParts } from "@/utils/dateFormatting";
 
 type CalendarAppointment = {
@@ -14,11 +15,14 @@ type CalendarAppointment = {
   resource_name: string | null;
   scheduled_at: string;
   duration_minutes: number;
+  services?: { id: number; title: string }[];
 };
 
 type AppointmentCalendarProps = {
   timezone: string;
 };
+
+type CalendarFilter = "all" | "mine";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -26,8 +30,11 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
   const { user } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [filter, setFilter] = useState<CalendarFilter>("all");
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -35,32 +42,57 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
   const fetchCalendar = useCallback(async () => {
     try {
       const data = await apiFetch<CalendarAppointment[]>("/api/v1/calendar");
-
       setAppointments(data);
       setError("");
-    } catch (requestError: any) {
-      setError(requestError.message);
+    } catch (requestError: unknown) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to load calendar."
+      );
     }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchCalendar();
+    }, [fetchCalendar])
+  );
+
   useEffect(() => {
-    fetchCalendar();
+    const updateNow = () => setNow(Date.now());
+
+    const interval = setInterval(updateNow, 60_000);
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        updateNow();
+        fetchCalendar();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [fetchCalendar]);
 
+  const visibleAppointments = useMemo(() => {
+    return appointments.filter(
+      (appointment) => filter === "all" || appointment.user_id === user?.id
+    );
+  }, [appointments, filter, user?.id]);
+
   const calendarDays = useMemo(() => {
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-
-    const startingDayIndex = firstDayOfMonth.getDay();
-    const daysInMonth = lastDayOfMonth.getDate();
-
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
     const days: (Date | null)[] = [];
 
-    for (let index = 0; index < startingDayIndex; index += 1) {
+    for (let i = 0; i < firstDay.getDay(); i += 1) {
       days.push(null);
     }
 
-    for (let day = 1; day <= daysInMonth; day += 1) {
+    for (let day = 1; day <= lastDay.getDate(); day += 1) {
       days.push(new Date(year, month, day));
     }
 
@@ -69,44 +101,34 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
     }
 
     return days;
-  }, [month, year]);
+  }, [year, month]);
 
-  const todayParts = useMemo(() => {
-    return getCalendarDateParts(new Date().toISOString(), timezone);
-  }, [timezone]);
-
-  function previousMonth() {
-    setCurrentDate(new Date(year, month - 1, 1));
-  }
-
-  function nextMonth() {
-    setCurrentDate(new Date(year, month + 1, 1));
-  }
+  const todayParts = useMemo(
+    () => getCalendarDateParts(new Date(now).toISOString(), timezone),
+    [now, timezone]
+  );
 
   function appointmentsForDay(dayDate: Date | null) {
-    if (!dayDate) {
-      return [];
-    }
+    if (!dayDate) return [];
 
-    return appointments.filter((appointment) => {
-      const appointmentDate = getCalendarDateParts(
-        appointment.scheduled_at,
-        timezone
-      );
+    return visibleAppointments
+      .filter((appointment) => {
+        const parts = getCalendarDateParts(appointment.scheduled_at, timezone);
 
-      return (
-        appointmentDate.year === dayDate.getFullYear() &&
-        appointmentDate.month === dayDate.getMonth() + 1 &&
-        appointmentDate.day === dayDate.getDate()
+        return (
+          parts.year === dayDate.getFullYear() &&
+          parts.month === dayDate.getMonth() + 1 &&
+          parts.day === dayDate.getDate()
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.scheduled_at).getTime() -
+          new Date(b.scheduled_at).getTime()
       );
-    });
   }
 
-  function isToday(dayDate: Date | null) {
-    if (!dayDate) {
-      return false;
-    }
-
+  function isToday(dayDate: Date) {
     return (
       dayDate.getFullYear() === todayParts.year &&
       dayDate.getMonth() + 1 === todayParts.month &&
@@ -114,12 +136,8 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
     );
   }
 
-  function isPastDay(dayDate: Date | null) {
-    if (!dayDate) {
-      return false;
-    }
-
-    const dayValue =
+  function isPastDay(dayDate: Date) {
+    const dateValue =
       dayDate.getFullYear() * 10000 +
       (dayDate.getMonth() + 1) * 100 +
       dayDate.getDate();
@@ -127,325 +145,454 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
     const todayValue =
       todayParts.year * 10000 + todayParts.month * 100 + todayParts.day;
 
-    return dayValue < todayValue;
+    return dateValue < todayValue;
   }
 
   function isPastAppointment(appointment: CalendarAppointment) {
-    const startTime = new Date(appointment.scheduled_at);
+    const endTime =
+      new Date(appointment.scheduled_at).getTime() +
+      appointment.duration_minutes * 60000;
 
-    const endTime = new Date(
-      startTime.getTime() + appointment.duration_minutes * 60 * 1000
+    return endTime < now;
+  }
+
+  function canOpenAppointment(appointment: CalendarAppointment) {
+    return appointment.user_id === user?.id && !isPastAppointment(appointment);
+  }
+
+  function appointmentEndTime(appointment: CalendarAppointment) {
+    const end = new Date(
+      new Date(appointment.scheduled_at).getTime() +
+        appointment.duration_minutes * 60000
     );
 
-    return endTime < new Date();
+    return formatTime(end.toISOString(), timezone);
   }
 
-  function isOwnAppointment(appointment: CalendarAppointment) {
-    return appointment.user_id === user?.id;
+  function changeMonth(offset: number) {
+    setCurrentDate(new Date(year, month + offset, 1));
   }
 
-  function handleAppointmentPress(appointment: CalendarAppointment) {
-    if (!isOwnAppointment(appointment) || isPastAppointment(appointment)) {
-      return;
-    }
+  function changeDay(offset: number) {
+    if (!selectedDay) return;
 
-    router.push(`/appointments/${appointment.id}`);
-  }
-
-  function renderOwnAppointmentContent(appointment: CalendarAppointment) {
-    return (
-      <>
-        <Text numberOfLines={1} style={styles.appointmentTime}>
-          {formatTime(appointment.scheduled_at, timezone)}
-        </Text>
-
-        <Text numberOfLines={1} style={styles.appointmentClient}>
-          {appointment.user_name}
-        </Text>
-
-        <Text numberOfLines={1} style={styles.appointmentResource}>
-          {appointment.resource_name}
-        </Text>
-      </>
+    const nextDay = new Date(
+      selectedDay.getFullYear(),
+      selectedDay.getMonth(),
+      selectedDay.getDate() + offset
     );
+
+    setSelectedDay(nextDay);
+    setCurrentDate(new Date(nextDay.getFullYear(), nextDay.getMonth(), 1));
   }
+
+  const selectedDayAppointments = selectedDay
+    ? appointmentsForDay(selectedDay)
+    : [];
 
   return (
     <View style={styles.container}>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.header}>
+      <View style={styles.filterRow}>
         <Pressable
-          onPress={previousMonth}
+          onPress={() => setFilter("mine")}
           accessibilityRole="button"
-          accessibilityLabel="Show previous month"
-          style={styles.monthButton}
+          accessibilityState={{ selected: filter === "mine" }}
+          style={[
+            styles.filterButton,
+            filter === "mine" && styles.activeFilter,
+          ]}
         >
-          <Text style={styles.monthButtonText}>Previous</Text>
+          <Text
+            style={[
+              styles.filterText,
+              filter === "mine" && styles.activeFilterText,
+            ]}
+          >
+            My Appointments
+          </Text>
         </Pressable>
 
-        <Text accessibilityRole="header" style={styles.monthTitle}>
-          {currentDate.toLocaleString("default", {
-            month: "long",
-            year: "numeric",
-          })}
-        </Text>
-
         <Pressable
-          onPress={nextMonth}
+          onPress={() => setFilter("all")}
           accessibilityRole="button"
-          accessibilityLabel="Show next month"
-          style={styles.monthButton}
+          accessibilityState={{ selected: filter === "all" }}
+          style={[styles.filterButton, filter === "all" && styles.activeFilter]}
         >
-          <Text style={styles.monthButtonText}>Next</Text>
+          <Text
+            style={[
+              styles.filterText,
+              filter === "all" && styles.activeFilterText,
+            ]}
+          >
+            All Appointments
+          </Text>
         </Pressable>
       </View>
 
-      <View style={styles.weekdayRow}>
-        {WEEKDAYS.map((weekday) => (
-          <View key={weekday} style={styles.weekdayCell}>
-            <Text style={styles.weekdayText}>{weekday}</Text>
-          </View>
-        ))}
-      </View>
+      {selectedDay ? (
+        <View style={styles.dayView}>
+          <Pressable
+            onPress={() => setSelectedDay(null)}
+            accessibilityRole="button"
+            style={styles.backButton}
+          >
+            <Text style={styles.backButtonText}>← Back to Month</Text>
+          </Pressable>
 
-      <View style={styles.calendarGrid}>
-        {calendarDays.map((dayDate, index) => {
-          const dayAppointments = appointmentsForDay(dayDate);
-          const dayIsToday = isToday(dayDate);
-          const dayIsPast = isPastDay(dayDate);
-
-          return (
-            <View
-              key={dayDate?.toISOString() ?? `empty-${index}`}
-              style={[
-                styles.dayCell,
-                !dayDate ? styles.emptyDayCell : undefined,
-                dayIsPast ? styles.pastDayCell : undefined,
-                dayIsToday ? styles.todayCell : undefined,
-              ]}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => changeDay(-1)}
+              accessibilityRole="button"
+              accessibilityLabel="Previous day"
+              style={styles.navigationButton}
             >
-              {dayDate ? (
-                <>
+              <Text>‹ Previous</Text>
+            </Pressable>
+
+            <Text style={styles.dayTitle}>
+              {selectedDay.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+
+            <Pressable
+              onPress={() => changeDay(1)}
+              accessibilityRole="button"
+              accessibilityLabel="Next day"
+              style={styles.navigationButton}
+            >
+              <Text>Next ›</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.countHeading}>
+            {selectedDayAppointments.length}{" "}
+            {selectedDayAppointments.length === 1
+              ? "Appointment"
+              : "Appointments"}
+          </Text>
+
+          {selectedDayAppointments.length === 0 ? (
+            <Text style={styles.emptyMessage}>
+              No appointments for this day.
+            </Text>
+          ) : (
+            selectedDayAppointments.map((appointment) => {
+              const isOwn = appointment.user_id === user?.id;
+              const canOpen = canOpenAppointment(appointment);
+              const isPast = isPastAppointment(appointment);
+
+              return (
+                <Pressable
+                  key={appointment.id}
+                  disabled={!canOpen}
+                  onPress={() => router.push(`/appointments/${appointment.id}`)}
+                  accessibilityRole={canOpen ? "button" : undefined}
+                  style={({ pressed }) => [
+                    styles.dayAppointment,
+                    isPast && styles.pastAppointment,
+                    pressed && canOpen && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.appointmentTime}>
+                    {formatTime(appointment.scheduled_at, timezone)}
+                    {" – "}
+                    {appointmentEndTime(appointment)}
+                  </Text>
+
+                  {!isOwn && (
+                    <Text style={styles.appointmentDetail}>
+                      Provider: {appointment.user_name}
+                    </Text>
+                  )}
+
+                  {isOwn && (
+                    <Text style={styles.appointmentDetail}>
+                      Services:{" "}
+                      {appointment.services
+                        ?.map((service) => service.title)
+                        .join(", ") || "None"}
+                    </Text>
+                  )}
+
+                  <Text style={styles.appointmentDetail}>
+                    Resource: {appointment.resource_name ?? "Unassigned"}
+                  </Text>
+
+                  <Text style={styles.appointmentDetail}>
+                    Duration: {formatDuration(appointment.duration_minutes)}
+                  </Text>
+
+                  {!isOwn ? (
+                    <Text style={styles.occupiedText}>
+                      Taken · Other provider
+                    </Text>
+                  ) : isPast ? (
+                    <Text style={styles.mutedText}>Past appointment</Text>
+                  ) : (
+                    <Text style={styles.openText}>Tap to open appointment</Text>
+                  )}
+                </Pressable>
+              );
+            })
+          )}
+        </View>
+      ) : (
+        <>
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => changeMonth(-1)}
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
+              style={styles.navigationButton}
+            >
+              <Text>Previous</Text>
+            </Pressable>
+
+            <Text style={styles.monthTitle}>
+              {currentDate.toLocaleString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </Text>
+
+            <Pressable
+              onPress={() => changeMonth(1)}
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+              style={styles.navigationButton}
+            >
+              <Text>Next</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.weekdayRow}>
+            {WEEKDAYS.map((weekday, index) => (
+              <View key={index} style={styles.weekdayCell}>
+                <Text style={styles.weekdayText}>{weekday}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.calendarGrid}>
+            {calendarDays.map((dayDate, index) => {
+              if (!dayDate) {
+                return (
+                  <View
+                    key={`empty-${index}`}
+                    style={[styles.dayCell, styles.emptyDayCell]}
+                  />
+                );
+              }
+
+              const count = appointmentsForDay(dayDate).length;
+              const today = isToday(dayDate);
+              const past = isPastDay(dayDate);
+
+              return (
+                <Pressable
+                  key={`${dayDate.getFullYear()}-${dayDate.getMonth()}-${dayDate.getDate()}`}
+                  onPress={() => setSelectedDay(dayDate)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${dayDate.toDateString()}, ${count} appointments`}
+                  style={({ pressed }) => [
+                    styles.dayCell,
+                    past && styles.pastDayCell,
+                    today && styles.todayCell,
+                    pressed && styles.pressed,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.dayNumber,
-                      dayIsPast ? styles.pastDayNumber : undefined,
-                      dayIsToday ? styles.todayDayNumber : undefined,
+                      past && styles.pastDayNumber,
+                      today && styles.todayDayNumber,
                     ]}
                   >
                     {dayDate.getDate()}
                   </Text>
 
-                  {dayAppointments.slice(0, 2).map((appointment) => {
-                    const ownAppointment = isOwnAppointment(appointment);
-                    const appointmentIsPast = isPastAppointment(appointment);
-
-                    if (!ownAppointment) {
-                      return (
-                        <View
-                          key={appointment.id}
-                          style={[
-                            styles.appointment,
-                            appointmentIsPast
-                              ? styles.pastAppointment
-                              : undefined,
-                          ]}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            style={styles.appointmentTime}
-                          >
-                            {formatTime(appointment.scheduled_at, timezone)}
-                          </Text>
-
-                          <Text
-                            numberOfLines={1}
-                            style={styles.appointmentClient}
-                          >
-                            {appointment.user_name}
-                          </Text>
-
-                          <Text
-                            numberOfLines={1}
-                            style={styles.appointmentResource}
-                          >
-                            {appointment.resource_name}
-                          </Text>
-
-                          <Text
-                            numberOfLines={1}
-                            style={styles.appointmentClient}
-                          >
-                            Taken
-                          </Text>
-                        </View>
-                      );
-                    }
-
-                    if (appointmentIsPast) {
-                      return (
-                        <View
-                          key={appointment.id}
-                          style={[styles.appointment, styles.pastAppointment]}
-                        >
-                          {renderOwnAppointmentContent(appointment)}
-                        </View>
-                      );
-                    }
-
-                    return (
-                      <Pressable
-                        key={appointment.id}
-                        onPress={() => handleAppointmentPress(appointment)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Open your appointment at ${formatTime(
-                          appointment.scheduled_at,
-                          timezone
-                        )}`}
-                        style={({ pressed }) => [
-                          styles.appointment,
-                          pressed ? styles.appointmentPressed : undefined,
-                        ]}
-                      >
-                        {renderOwnAppointmentContent(appointment)}
-                      </Pressable>
-                    );
-                  })}
-
-                  {dayAppointments.length > 2 ? (
-                    <Text style={styles.moreAppointments}>
-                      +{dayAppointments.length - 2} more
+                  {count > 0 && (
+                    <Text style={styles.dayCount}>
+                      {count} {count === 1 ? "appt" : "appts"}
                     </Text>
-                  ) : null}
-                </>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    gap: 12,
+  },
+  filterRow: {
+    flexDirection: "row",
     gap: 8,
   },
-
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-
-  monthButton: {
+  filterButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    alignItems: "center",
   },
-
-  monthButtonText: {
+  activeFilter: {
+    backgroundColor: "#0D0D5B",
+    borderColor: "#0D0D5B",
+  },
+  filterText: {
     fontSize: 12,
     fontWeight: "600",
+    textAlign: "center",
   },
-
+  activeFilterText: {
+    color: "#FFFFFF",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  navigationButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
   monthTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
   },
-
   weekdayRow: {
     flexDirection: "row",
   },
-
   weekdayCell: {
-    alignItems: "center",
     width: "14.2857%",
+    alignItems: "center",
   },
-
   weekdayText: {
     fontSize: 11,
     fontWeight: "bold",
   },
-
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
   },
-
   dayCell: {
-    borderWidth: StyleSheet.hairlineWidth,
-    minHeight: 88,
-    padding: 3,
     width: "14.2857%",
+    minHeight: 70,
+    padding: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
   },
-
   emptyDayCell: {
     opacity: 0.3,
   },
-
   pastDayCell: {
     backgroundColor: "#f2f2f2",
   },
-
   todayCell: {
     backgroundColor: "#e8f0fe",
     borderWidth: 2,
+    borderColor: "#2424B0",
   },
-
   dayNumber: {
-    fontSize: 12,
-    fontWeight: "bold",
-    marginBottom: 3,
-  },
-
-  pastDayNumber: {
-    color: "#888",
-  },
-
-  todayDayNumber: {
     fontSize: 14,
+    fontWeight: "bold",
+  },
+  pastDayNumber: {
+    color: "#777",
+  },
+  todayDayNumber: {
+    color: "#0D0D5B",
     fontWeight: "900",
   },
-
-  appointment: {
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 3,
-    padding: 3,
-  },
-
-  appointmentPressed: {
-    opacity: 0.6,
-  },
-
-  appointmentTime: {
-    fontSize: 9,
-    fontWeight: "bold",
-  },
-
-  appointmentResource: {
-    fontSize: 9,
-  },
-
-  appointmentClient: {
-    fontSize: 9,
-  },
-
-  pastAppointment: {
-    backgroundColor: "#d9d9d9",
-    opacity: 0.65,
-  },
-
-  moreAppointments: {
+  dayCount: {
     fontSize: 9,
     fontWeight: "600",
+    textAlign: "center",
   },
-
+  dayView: {
+    gap: 12,
+  },
+  backButton: {
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+  },
+  backButtonText: {
+    fontSize: 15,
+    color: "#2424B0",
+    fontWeight: "bold",
+  },
+  dayTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  countHeading: {
+    fontSize: 17,
+    fontWeight: "bold",
+  },
+  dayAppointment: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    gap: 6,
+  },
+  appointmentTime: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  appointmentTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  appointmentDetail: {
+    fontSize: 13,
+  },
+  occupiedText: {
+    fontSize: 12,
+    color: "#777",
+  },
+  openText: {
+    fontSize: 12,
+    color: "#2424B0",
+    fontWeight: "600",
+  },
+  mutedText: {
+    fontSize: 12,
+    color: "#777",
+  },
+  pastAppointment: {
+    backgroundColor: "#d9d9d9",
+    opacity: 0.75,
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  emptyMessage: {
+    paddingVertical: 24,
+    textAlign: "center",
+    color: "#777",
+  },
   error: {
     color: "red",
   },

@@ -74,6 +74,7 @@ export function AppointmentForm({
   );
 
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [candidateSlots, setCandidateSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -134,6 +135,7 @@ export function AppointmentForm({
 
     setSelectedSlot("");
     setAvailableSlots([]);
+    setCandidateSlots([]);
     setAvailabilityError("");
 
     if (
@@ -155,15 +157,17 @@ export function AppointmentForm({
       durationMinutes: duration,
       resourceId: Number(resourceId),
     })
-      .then((slots) => {
+      .then((result) => {
         if (!cancelled) {
-          setAvailableSlots(slots);
+          setAvailableSlots(result.slots);
+          setCandidateSlots(result.candidate_slots);
         }
       })
       .catch((fetchError) => {
         if (!cancelled) {
           console.error("Failed to fetch availability:", fetchError);
           setAvailableSlots([]);
+          setCandidateSlots([]);
           setAvailabilityError(
             "Could not load available times. Please try again."
           );
@@ -458,7 +462,7 @@ export function AppointmentForm({
             <Text>Loading available times...</Text>
           ) : availabilityError ? (
             <Text style={{ color: "red" }}>{availabilityError}</Text>
-          ) : availableSlots.length === 0 ? (
+          ) : candidateSlots.length === 0 ? (
             <Text>No available times for this date.</Text>
           ) : (
             <View style={{ borderWidth: 1, borderRadius: 8 }}>
@@ -468,13 +472,23 @@ export function AppointmentForm({
               >
                 <Picker.Item label="Select a time" value="" />
 
-                {availableSlots.map((slot) => (
-                  <Picker.Item
-                    key={slot}
-                    label={formatTime(slot, timezone)}
-                    value={slot}
-                  />
-                ))}
+                {candidateSlots.map((slot) => {
+                  const isAvailable = availableSlots.includes(slot);
+
+                  return (
+                    <Picker.Item
+                      key={slot}
+                      label={
+                        isAvailable
+                          ? formatTime(slot, timezone)
+                          : `${formatTime(slot, timezone)} — Unavailable`
+                      }
+                      value={slot}
+                      enabled={isAvailable}
+                      color={isAvailable ? undefined : "#999999"}
+                    />
+                  );
+                })}
               </Picker>
             </View>
           )}
