@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text } from "react-native";
 
 import { useAuth } from "@/auth/useAuth";
 
@@ -22,13 +22,6 @@ export default function SettingsScreen() {
         ? "Manage business information and timezone"
         : "View business information",
       path: "/settings/business",
-    },
-    {
-      title: "Business Hours",
-      description: isOwner
-        ? "Manage business operating hours"
-        : "View business operating hours",
-      path: "/settings/business-hours",
     },
     ...(canManageSchedule
       ? [

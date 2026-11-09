@@ -14,6 +14,7 @@ type AuthContextType = {
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,6 +45,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   async function refreshAccount() {
     await loadCurrentAccount();
+  }
+
+  async function refreshUser() {
+    await loadCurrentUser();
   }
 
   useEffect(() => {
@@ -111,6 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         signIn,
         signOut,
         refreshAccount,
+        refreshUser,
       }}
     >
       {children}
