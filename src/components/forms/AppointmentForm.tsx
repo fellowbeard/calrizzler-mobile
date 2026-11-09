@@ -182,7 +182,7 @@ export function AppointmentForm({
     return () => {
       cancelled = true;
     };
-  }, [initialValues, date, resourceId, durationMinutes]);
+  }, [initialValues, date, resourceId, durationMinutes, duration]);
 
   function calculateServiceDuration(serviceIds: number[]) {
     return services
