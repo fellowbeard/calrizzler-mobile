@@ -39,9 +39,8 @@ const drawerRoutes = [
   },
   {
     name: "settings",
-    title: "Account Settings",
+    title: "Settings",
     path: "/settings",
-    ownerOnly: true,
   },
 ] as const;
 
@@ -82,12 +81,14 @@ export default function AppLayout() {
               name={route.name}
               options={{
                 title: route.title,
+
                 headerTitle: () => {
                   const isSectionIndex = [
                     "appointments",
                     "clients",
                     "services",
                     "resources",
+                    "settings",
                   ].includes(route.name);
 
                   if (!isSectionIndex) {

@@ -1,199 +1,88 @@
-import { useEffect, useState } from "react";
-import { Button, ScrollView, Text, TextInput, View } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+import { router } from "expo-router";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { apiFetch } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
-import { ValidatedEmailInput } from "@/components/ValidatedEmailInput";
-import { TIMEZONE_OPTIONS } from "@/utils/dateFormatting";
+
+type SettingsItem = {
+  title: string;
+  description: string;
+  path: string;
+};
 
 export default function SettingsScreen() {
-  const { user, account, refreshAccount } = useAuth();
+  const { user } = useAuth();
 
-  const [businessName, setBusinessName] = useState("");
-  const [timezone, setTimezone] = useState("");
+  const isOwner = user?.role === "owner";
+  const canManageSchedule = user?.role === "owner" || user?.role === "staff";
 
-  const [settingsError, setSettingsError] = useState("");
-  const [settingsSuccessMessage, setSettingsSuccessMessage] = useState("");
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("staff");
-  const [inviteError, setInviteError] = useState("");
-  const [inviteSuccessMessage, setInviteSuccessMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-
-  useEffect(() => {
-    if (!account) return;
-
-    setBusinessName(account.business_name ?? "");
-    setTimezone(account.timezone ?? "America/Denver");
-  }, [account]);
-
-  if (user?.role !== "owner") {
-    return (
-      <View style={{ padding: 24 }}>
-        <Text>Only account owners can access account settings.</Text>
-      </View>
-    );
-  }
-
-  async function handleSaveSettings() {
-    setSettingsError("");
-    setSettingsSuccessMessage("");
-    setIsSavingSettings(true);
-
-    try {
-      await apiFetch("/api/v1/account", {
-        method: "PATCH",
-        body: JSON.stringify({
-          account: {
-            business_name: businessName,
-            timezone,
+  const items: SettingsItem[] = [
+    {
+      title: "Business Information",
+      description: isOwner
+        ? "Manage business information and timezone"
+        : "View business information",
+      path: "/settings/business",
+    },
+    {
+      title: "Business Hours",
+      description: isOwner
+        ? "Manage business operating hours"
+        : "View business operating hours",
+      path: "/settings/business-hours",
+    },
+    ...(canManageSchedule
+      ? [
+          {
+            title: "My Working Hours",
+            description: "Manage your personal availability",
+            path: "/settings/my-working-hours",
           },
-        }),
-      });
-
-      await refreshAccount();
-
-      setSettingsSuccessMessage("Account settings updated.");
-    } catch (requestError: any) {
-      setSettingsError(
-        requestError.validationErrors?.[0]?.message || requestError.message
-      );
-    } finally {
-      setIsSavingSettings(false);
-    }
-  }
-
-  async function handleInvite() {
-    setInviteError("");
-    setInviteSuccessMessage("");
-    setIsSending(true);
-
-    try {
-      await apiFetch("/api/v1/user_invitations", {
-        method: "POST",
-        body: JSON.stringify({
-          invitation: {
-            email,
-            role,
+        ]
+      : []),
+    ...(isOwner
+      ? [
+          {
+            title: "Staff Management",
+            description: "Manage staff and invitations",
+            path: "/settings/staff",
           },
-        }),
-      });
-
-      setEmail("");
-      setRole("staff");
-      setInviteSuccessMessage("Invitation sent.");
-    } catch (requestError: any) {
-      setInviteError(
-        requestError.validationErrors?.[0]?.message || requestError.message
-      );
-    } finally {
-      setIsSending(false);
-    }
-  }
+        ]
+      : []),
+    {
+      title: "My Profile",
+      description: "Manage your personal information",
+      path: "/settings/profile",
+    },
+    {
+      title: "Password & Security",
+      description: "Manage your password",
+      path: "/settings/security",
+    },
+  ];
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        padding: 24,
-        gap: 24,
-      }}
-    >
-      <Text style={{ fontSize: 24, fontWeight: "bold" }}>Account Settings</Text>
+    <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 12 }}>
+        Settings
+      </Text>
 
-      <View style={{ gap: 12 }}>
-        <View style={{ gap: 6 }}>
-          <Text>Business Name</Text>
-
-          <TextInput
-            value={businessName}
-            onChangeText={setBusinessName}
-            placeholder="Business name"
-            style={{
-              borderWidth: 1,
-              borderRadius: 8,
-              padding: 12,
-            }}
-          />
-        </View>
-
-        <View style={{ gap: 6 }}>
-          <Text>Timezone</Text>
-
-          <View
-            style={{
-              borderWidth: 1,
-              borderRadius: 8,
-            }}
-          >
-            <Picker
-              selectedValue={timezone}
-              onValueChange={(value) => setTimezone(value)}
-            >
-              {TIMEZONE_OPTIONS.map((option) => (
-                <Picker.Item
-                  key={option.value}
-                  label={option.label}
-                  value={option.value}
-                />
-              ))}
-            </Picker>
-          </View>
-        </View>
-
-        {settingsError ? (
-          <Text style={{ color: "red" }}>{settingsError}</Text>
-        ) : null}
-
-        {settingsSuccessMessage ? <Text>{settingsSuccessMessage}</Text> : null}
-
-        <Button
-          title={isSavingSettings ? "Saving..." : "Save Settings"}
-          onPress={handleSaveSettings}
-          disabled={isSavingSettings}
-        />
-      </View>
-
-      <View
-        style={{
-          borderTopWidth: 1,
-          paddingTop: 24,
-          gap: 12,
-        }}
-      >
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>Invite User</Text>
-
-        <ValidatedEmailInput value={email} onChangeText={setEmail} />
-
-        <View
+      {items.map((item) => (
+        <Pressable
+          key={item.path}
+          onPress={() => router.push(item.path as never)}
+          accessibilityRole="button"
           style={{
             borderWidth: 1,
             borderRadius: 8,
+            padding: 16,
+            gap: 4,
           }}
         >
-          <Picker
-            selectedValue={role}
-            onValueChange={(value) => setRole(value)}
-          >
-            <Picker.Item label="Staff" value="staff" />
-            <Picker.Item label="Read Only" value="read_only" />
-          </Picker>
-        </View>
+          <Text style={{ fontSize: 17, fontWeight: "600" }}>{item.title}</Text>
 
-        {inviteError ? (
-          <Text style={{ color: "red" }}>{inviteError}</Text>
-        ) : null}
-
-        {inviteSuccessMessage ? <Text>{inviteSuccessMessage}</Text> : null}
-
-        <Button
-          title={isSending ? "Sending..." : "Send Invitation"}
-          onPress={handleInvite}
-          disabled={isSending}
-        />
-      </View>
+          <Text style={{ opacity: 0.7 }}>{item.description}</Text>
+        </Pressable>
+      ))}
     </ScrollView>
   );
 }
