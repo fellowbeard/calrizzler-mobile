@@ -251,25 +251,26 @@ export default function BusinessInformationScreen() {
           })
         )}
       </View>
-
-      <Pressable
-        onPress={() => router.push("/settings/business-hours")}
-        accessibilityRole="button"
-        style={{
-          alignSelf: "flex-start",
-          paddingVertical: 12,
-        }}
-      >
-        <Text
+      {user?.role === "owner" && (
+        <Pressable
+          onPress={() => router.push("/settings/business-hours")}
+          accessibilityRole="button"
           style={{
-            color: "#007AFF",
-            fontSize: 16,
-            fontWeight: "600",
+            alignSelf: "flex-start",
+            paddingVertical: 12,
           }}
         >
-          Edit Business Hours
-        </Text>
-      </Pressable>
+          <Text
+            style={{
+              color: "#007AFF",
+              fontSize: 16,
+              fontWeight: "600",
+            }}
+          >
+            Edit Business Hours
+          </Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
