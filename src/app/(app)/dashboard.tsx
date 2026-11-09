@@ -35,7 +35,12 @@ export default function DashboardScreen() {
 
       <Button
         title="New Appointment"
-        onPress={() => router.push("/appointments/new")}
+        onPress={() =>
+          router.push({
+            pathname: "/appointments/new",
+            params: { returnTo: "dashboard" },
+          })
+        }
       />
 
       <Text style={{ fontSize: 20, fontWeight: "bold" }}>Calendar</Text>
