@@ -9,6 +9,11 @@ export type Client = {
   last_name: string;
   email: string | null;
   phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
 };
 
 export type ClientDetail = Client & {

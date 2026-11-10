@@ -1,5 +1,5 @@
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 
 import { canWrite } from "@/auth/permissions";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
@@ -30,7 +30,14 @@ export default function EditClientScreen() {
 
   return (
     <ProtectedRoute>
-      <View style={{ padding: 24, gap: 12 }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 24,
+          gap: 12,
+          paddingBottom: 40,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={{ fontSize: 28 }}>Edit Client</Text>
 
         <ClientForm
@@ -46,7 +53,7 @@ export default function EditClientScreen() {
             }
           }}
         />
-      </View>
+      </ScrollView>
     </ProtectedRoute>
   );
 }

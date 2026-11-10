@@ -3,28 +3,43 @@ import { useFocusEffect } from "expo-router";
 
 import { apiFetch } from "@/api/client";
 import type { Client } from "@/types/client";
-import type { DashboardData } from "@/types/dashboard";
 
-export function useClients() {
+export function useClients(search = "") {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      setIsLoading(true);
+      let active = true;
 
-      apiFetch<DashboardData>("/api/v1/dashboard")
-        .then((data) => setClients(data.clients))
+      const query = search ? `?search=${encodeURIComponent(search)}` : "";
+
+      apiFetch<Client[]>(`/api/v1/clients${query}`)
+        .then((data) => {
+          if (!active) return;
+
+          setClients(data);
+          setError("");
+        })
         .catch((error) => {
+          if (!active) return;
+
+          setClients([]);
           setError(
             error instanceof Error ? error.message : "Unable to load clients."
           );
         })
         .finally(() => {
-          setIsLoading(false);
+          if (active) {
+            setIsLoading(false);
+          }
         });
-    }, [])
+
+      return () => {
+        active = false;
+      };
+    }, [search])
   );
 
   return { clients, error, isLoading };

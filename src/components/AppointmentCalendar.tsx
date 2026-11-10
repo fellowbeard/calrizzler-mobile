@@ -16,6 +16,7 @@ type CalendarAppointment = {
   scheduled_at: string;
   duration_minutes: number;
   services?: { id: number; title: string }[];
+  notes?: string | null;
 };
 
 type AppointmentCalendarProps = {
@@ -327,6 +328,12 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
                   <Text style={styles.appointmentDetail}>
                     Duration: {formatDuration(appointment.duration_minutes)}
                   </Text>
+
+                  {isOwn && appointment.notes?.trim() ? (
+                    <Text style={styles.appointmentDetail}>
+                      Notes: {appointment.notes}
+                    </Text>
+                  ) : null}
 
                   {!isOwn ? (
                     <Text style={styles.occupiedText}>

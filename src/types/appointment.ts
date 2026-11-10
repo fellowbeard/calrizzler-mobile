@@ -17,6 +17,7 @@ export type Appointment = {
   resource: Resource;
   scheduled_at: string;
   status: string;
+  notes: string | null;
   duration_minutes: number;
   duration_overridden: boolean;
   blocking_reservation_time: string;

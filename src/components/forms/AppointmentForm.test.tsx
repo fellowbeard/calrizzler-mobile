@@ -19,6 +19,7 @@ describe("AppointmentForm", () => {
           resource: { id: 3, name: "Room A" },
           scheduled_at: "2026-01-15T02:30:00Z",
           status: "scheduled",
+          notes: null,
           duration_minutes: 0,
           duration_overridden: false,
           blocking_reservation_time: "0",
@@ -28,11 +29,16 @@ describe("AppointmentForm", () => {
         clients={[
           {
             id: 1,
-            user_id: 10,
+            user_id: 1,
             first_name: "Jane",
             last_name: "Doe",
             email: "jane@example.com",
             phone: null,
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            state: null,
+            postal_code: null,
           },
         ]}
         resources={[{ id: 3, name: "Room A" }]}

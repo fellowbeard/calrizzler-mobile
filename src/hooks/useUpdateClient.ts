@@ -1,18 +1,12 @@
 import { useState } from "react";
 import { apiFetch, ApiError } from "@/api/client";
-
-type ClientPayload = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-};
+import type { ClientFormValues } from "@/components/forms/ClientForm";
 
 export function useUpdateClient(id: string | string[] | undefined) {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  async function updateClient(payload: ClientPayload) {
+  async function updateClient(payload: ClientFormValues) {
     if (!id || Array.isArray(id)) {
       setError("Invalid client id.");
       return null;
