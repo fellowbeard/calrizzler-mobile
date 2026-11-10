@@ -87,6 +87,12 @@ export default function AppointmentDetailScreen() {
       )}
       <Text style={{ fontSize: 20, marginTop: 16 }}>Resource</Text>
       <Text>{appointment.resource?.name}</Text>
+      {appointment.notes?.trim() ? (
+        <>
+          <Text style={{ fontSize: 20, marginTop: 16 }}>Appointment Notes</Text>
+          <Text>{appointment.notes}</Text>
+        </>
+      ) : null}
     </ScrollView>
   );
 }

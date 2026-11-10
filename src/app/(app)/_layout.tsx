@@ -18,6 +18,11 @@ const drawerRoutes = [
     path: "/dashboard",
   },
   {
+    name: "search",
+    title: "Search",
+    path: "/search",
+  },
+  {
     name: "appointments",
     title: "Appointments",
     path: "/appointments",

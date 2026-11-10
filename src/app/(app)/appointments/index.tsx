@@ -10,9 +10,9 @@ import { canWrite } from "@/auth/permissions";
 import {
   formatDate,
   formatTime,
-  formatTimezone,
   calculateEndTime,
 } from "@/utils/dateFormatting";
+import { formatDuration } from "@/utils/durationFormatting";
 
 export default function AppointmentsScreen() {
   const { appointments, error, isLoading } = useAppointments();
@@ -48,7 +48,9 @@ export default function AppointmentsScreen() {
         <FlatList
           data={appointments}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ padding: 24 }}
+          contentContainerStyle={{
+            padding: 24,
+          }}
           renderItem={({ item }) => {
             const endTime = calculateEndTime(
               item.scheduled_at,
@@ -61,39 +63,72 @@ export default function AppointmentsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Open appointment ${item.id}`}
                 style={{
-                  padding: 16,
-                  borderBottomWidth: 1,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: "#333333",
+                  borderRadius: 8,
+                  marginBottom: 12,
                 }}
               >
-                <Text style={{ fontSize: 18 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "600",
+                    marginBottom: 6,
+                  }}
+                >
                   {item.client
                     ? `${item.client.first_name} ${item.client.last_name}`
                     : "No client"}
                 </Text>
 
-                <Text>
-                  Start Date: {formatDate(item.scheduled_at, account.timezone)}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    marginBottom: 4,
+                  }}
+                >
+                  {formatDate(item.scheduled_at, account.timezone)}
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 8,
+                  }}
+                >
+                  {formatTime(item.scheduled_at, account.timezone)} –{" "}
+                  {formatTime(endTime.toISOString(), account.timezone)}
                 </Text>
 
                 <Text>
-                  Start Time: {formatTime(item.scheduled_at, account.timezone)}{" "}
-                  ({formatTimezone(account.timezone)})
+                  Services:{" "}
+                  {item.services?.length
+                    ? item.services.map((service) => service.title).join(", ")
+                    : "None"}
                 </Text>
 
-                <Text>
-                  End Date:{" "}
-                  {formatDate(endTime.toISOString(), account.timezone)}
+                <Text>Resource: {item.resource?.name ?? "Unassigned"}</Text>
+
+                <Text>Status: {item.status}</Text>
+
+                <Text>Duration: {formatDuration(item.duration_minutes)}</Text>
+
+                {item.notes?.trim() ? (
+                  <Text>Appointment Notes: {item.notes}</Text>
+                ) : null}
+
+                <Text
+                  style={{
+                    color: "#2424B0",
+                    fontSize: 12,
+                    fontWeight: "600",
+                    marginTop: 8,
+                  }}
+                >
+                  Tap to open appointment
                 </Text>
-
-                <Text>
-                  End Time:{" "}
-                  {formatTime(endTime.toISOString(), account.timezone)} (
-                  {formatTimezone(account.timezone)})
-                </Text>
-
-                <Text>Resource: {item.resource.name}</Text>
-
-                <Text>{item.status}</Text>
               </Pressable>
             );
           }}

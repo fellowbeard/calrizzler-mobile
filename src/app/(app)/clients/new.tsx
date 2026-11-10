@@ -1,5 +1,5 @@
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
@@ -18,7 +18,14 @@ export default function NewClientScreen() {
   }
 
   return (
-    <View style={{ padding: 24, gap: 12 }}>
+    <ScrollView
+      contentContainerStyle={{
+        padding: 24,
+        gap: 12,
+        paddingBottom: 40,
+      }}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={{ fontSize: 28 }}>New Client</Text>
 
       <ClientForm
@@ -45,6 +52,6 @@ export default function NewClientScreen() {
           router.replace(`/clients/${client.id}`);
         }}
       />
-    </View>
+    </ScrollView>
   );
 }

@@ -2,19 +2,13 @@ import { useState } from "react";
 
 import { apiFetch } from "@/api/client";
 import type { Client } from "@/types/client";
-
-type CreateClientInput = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-};
+import type { ClientFormValues } from "@/components/forms/ClientForm";
 
 export function useCreateClient() {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  async function createClient(input: CreateClientInput) {
+  async function createClient(input: ClientFormValues) {
     setError("");
     setIsSaving(true);
 
@@ -26,7 +20,9 @@ export function useCreateClient() {
         }),
       });
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to create client.");
+      setError(
+        error instanceof Error ? error.message : "Unable to create client."
+      );
       return null;
     } finally {
       setIsSaving(false);

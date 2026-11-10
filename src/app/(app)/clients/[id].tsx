@@ -9,9 +9,11 @@ import { useClient } from "@/hooks/useClient";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProtectedRoute } from "@/auth/ProtectedRoute";
+import { formatDuration } from "@/utils/durationFormatting";
+import { formatDate, formatTime } from "@/utils/dateFormatting";
 
 export default function ClientDetailScreen() {
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const { id } = useLocalSearchParams();
 
   const { client, error, refetch } = useClient(id);
@@ -34,6 +36,21 @@ export default function ClientDetailScreen() {
   }
 
   const clientId = client.id;
+
+  const hasAddress = [
+    client.address_line1,
+    client.address_line2,
+    client.city,
+    client.state,
+    client.postal_code,
+  ].some((value) => Boolean(value?.trim()));
+
+  const cityStatePostal = [
+    [client.city, client.state].filter(Boolean).join(", "),
+    client.postal_code,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const sortedNotes = [...client.notes].sort(
     (a, b) =>
@@ -146,6 +163,25 @@ export default function ClientDetailScreen() {
 
         <Text>{client.email || "No email"}</Text>
         <Text>{client.phone || "No phone"}</Text>
+        <View style={{ gap: 4, marginTop: 8 }}>
+          <Text style={{ fontWeight: "600" }}>Address</Text>
+
+          {hasAddress ? (
+            <>
+              {client.address_line1 ? (
+                <Text>{client.address_line1}</Text>
+              ) : null}
+
+              {client.address_line2 ? (
+                <Text>{client.address_line2}</Text>
+              ) : null}
+
+              {cityStatePostal ? <Text>{cityStatePostal}</Text> : null}
+            </>
+          ) : (
+            <Text>No address</Text>
+          )}
+        </View>
 
         {canWrite(user) ? (
           <Link href={`/clients/${client.id}/edit`} asChild>
@@ -287,6 +323,68 @@ export default function ClientDetailScreen() {
                 </View>
               );
             })
+          )}
+        </View>
+        <View style={{ marginTop: 20, gap: 12 }}>
+          <Text style={{ fontSize: 20 }}>Appointment History</Text>
+
+          {client.appointments.length === 0 ? (
+            <Text>No appointments yet.</Text>
+          ) : (
+            [...client.appointments]
+              .sort(
+                (a, b) =>
+                  new Date(b.scheduled_at).getTime() -
+                  new Date(a.scheduled_at).getTime()
+              )
+              .map((appointment) => (
+                <View
+                  key={appointment.id}
+                  style={{
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#ddd",
+                    gap: 6,
+                  }}
+                >
+                  <Text style={{ fontWeight: "600" }}>
+                    {formatDate(
+                      appointment.scheduled_at,
+                      account?.timezone ?? "UTC"
+                    )}{" "}
+                    —{" "}
+                    {formatTime(
+                      appointment.scheduled_at,
+                      account?.timezone ?? "UTC"
+                    )}
+                  </Text>
+
+                  <Text>Status: {appointment.status}</Text>
+
+                  <Text>
+                    Resource: {appointment.resource?.name ?? "Unassigned"}
+                  </Text>
+
+                  <Text>
+                    Duration: {formatDuration(appointment.duration_minutes)}
+                  </Text>
+
+                  {appointment.notes?.trim() ? (
+                    <Text>Appointment Notes: {appointment.notes}</Text>
+                  ) : null}
+
+                  <Text>
+                    Services:{" "}
+                    {appointment.services
+                      .map((service) => service.title)
+                      .join(", ") || "None"}
+                  </Text>
+
+                  <Link href={`/appointments/${appointment.id}`}>
+                    View Appointment
+                  </Link>
+                </View>
+              ))
           )}
         </View>
       </ScrollView>

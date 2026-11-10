@@ -32,6 +32,7 @@ export type AppointmentFormValues = {
   resource_id: number | null;
   scheduled_at: string;
   status: string;
+  notes: string;
   duration_minutes: number | null;
   duration_overridden: boolean;
   service_ids: number[];
@@ -80,11 +81,18 @@ export function AppointmentForm({
   const [availabilityError, setAvailabilityError] = useState("");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pendingDate, setPendingDate] = useState<Date>(() =>
+    currentTimeForPicker(timezone)
+  );
+
   const [status, setStatus] = useState("scheduled");
+  const [notes, setNotes] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [hasManualDurationOverride, setHasManualDurationOverride] =
     useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [serviceToAdd, setServiceToAdd] = useState("");
+
   const scrollViewRef = useRef<ScrollView>(null);
   const resourceY = useRef(0);
 
@@ -108,6 +116,7 @@ export function AppointmentForm({
     );
 
     setStatus(initialValues?.status ?? "scheduled");
+    setNotes(initialValues?.notes ?? "");
 
     setDurationMinutes(
       initialValues?.duration_minutes != null
@@ -120,6 +129,7 @@ export function AppointmentForm({
     setSelectedServiceIds(
       initialValues?.services?.map((service) => service.id) ?? []
     );
+    setServiceToAdd("");
   }, [initialValues, initialClientId, timezone]);
 
   const date = [
@@ -193,16 +203,33 @@ export function AppointmentForm({
       );
   }
 
-  function toggleService(serviceId: number) {
-    const updatedServiceIds = selectedServiceIds.includes(serviceId)
-      ? selectedServiceIds.filter((id) => id !== serviceId)
-      : [...selectedServiceIds, serviceId];
+  function addService() {
+    if (!serviceToAdd) return;
+
+    const serviceId = Number(serviceToAdd);
+
+    if (selectedServiceIds.includes(serviceId)) return;
+
+    const updatedServiceIds = [...selectedServiceIds, serviceId];
+
+    setSelectedServiceIds(updatedServiceIds);
+    setServiceToAdd("");
+
+    if (!hasManualDurationOverride) {
+      const totalDuration = calculateServiceDuration(updatedServiceIds);
+      setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
+    }
+  }
+
+  function removeService(serviceId: number) {
+    const updatedServiceIds = selectedServiceIds.filter(
+      (id) => id !== serviceId
+    );
 
     setSelectedServiceIds(updatedServiceIds);
 
     if (!hasManualDurationOverride) {
       const totalDuration = calculateServiceDuration(updatedServiceIds);
-
       setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
     }
   }
@@ -212,6 +239,16 @@ export function AppointmentForm({
 
     setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
     setHasManualDurationOverride(false);
+  }
+
+  function openDatePicker() {
+    setPendingDate(new Date(scheduledAt));
+    setShowDatePicker(true);
+  }
+
+  function applyDate() {
+    setScheduledAt(pendingDate);
+    setShowDatePicker(false);
   }
 
   function handleSubmit() {
@@ -240,6 +277,7 @@ export function AppointmentForm({
       duration_minutes: parsedDuration,
       duration_overridden: hasManualDurationOverride,
       service_ids: selectedServiceIds,
+      notes,
     });
   }
 
@@ -257,6 +295,10 @@ export function AppointmentForm({
     Boolean(availabilityError) ||
     !availableSlots.includes(selectedSlot);
 
+  const availableServices = services.filter(
+    (service) => !selectedServiceIds.includes(service.id)
+  );
+
   return (
     <ScrollView
       ref={scrollViewRef}
@@ -266,6 +308,8 @@ export function AppointmentForm({
       }}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Client */}
+
       <Text>Client</Text>
 
       <View style={{ borderWidth: 1, borderRadius: 8 }}>
@@ -296,6 +340,80 @@ export function AppointmentForm({
       {fieldErrors.client?.map((fieldError, index) => (
         <Text key={index}>{fieldError.message}</Text>
       ))}
+
+      {/* Services */}
+
+      <Text>Services</Text>
+
+      <View style={{ borderWidth: 1, borderRadius: 8 }}>
+        <Picker
+          selectedValue={serviceToAdd}
+          onValueChange={(value) => setServiceToAdd(String(value))}
+        >
+          <Picker.Item label="Select a service" value="" />
+
+          {availableServices.map((service) => (
+            <Picker.Item
+              key={service.id}
+              label={`${service.title} — ${formatDuration(
+                Number(service.duration_minutes)
+              )}`}
+              value={String(service.id)}
+            />
+          ))}
+        </Picker>
+      </View>
+
+      <Button
+        title="Add Service"
+        onPress={addService}
+        disabled={!serviceToAdd}
+      />
+
+      {selectedServiceIds.length > 0 ? (
+        <View style={{ gap: 8 }}>
+          <Text style={{ fontWeight: "600" }}>Selected Services</Text>
+
+          {selectedServiceIds.map((serviceId) => {
+            const service = services.find((item) => item.id === serviceId);
+
+            if (!service) return null;
+
+            return (
+              <View
+                key={serviceId}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  paddingVertical: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#DDDDDD",
+                }}
+              >
+                <Text style={{ flex: 1 }}>
+                  {service.title} —{" "}
+                  {formatDuration(Number(service.duration_minutes))}
+                </Text>
+
+                <Button
+                  title="Remove"
+                  onPress={() => removeService(serviceId)}
+                />
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {fieldErrors.services?.map((fieldError, index) => (
+        <Text key={index} style={{ color: "red" }}>
+          {fieldError.message}
+        </Text>
+      ))}
+
+      {/* Resource */}
 
       <View
         onLayout={(event: LayoutChangeEvent) => {
@@ -328,6 +446,8 @@ export function AppointmentForm({
         ))}
       </View>
 
+      {/* Appointment date */}
+
       <Text>{initialValues ? "Scheduled At" : "Appointment Date"}</Text>
 
       <Button
@@ -336,57 +456,55 @@ export function AppointmentForm({
             ? formatPickerDateTime(scheduledAt)
             : scheduledAt.toLocaleDateString("en-US")
         }
-        onPress={() => setShowDatePicker(true)}
+        onPress={openDatePicker}
       />
 
       <Text>Business timezone: {timezone}</Text>
 
       {showDatePicker ? (
-        <>
+        <View style={{ marginBottom: 12 }}>
           <DateTimePicker
-            value={scheduledAt}
+            value={pendingDate}
             mode={initialValues ? "datetime" : "date"}
+            display={Platform.OS === "ios" ? "spinner" : "default"}
             onChange={(event, selectedDate) => {
               if (Platform.OS === "android") {
                 setShowDatePicker(false);
+
+                if (event.type === "set" && selectedDate) {
+                  setScheduledAt(selectedDate);
+                }
+
+                return;
               }
 
-              if (event.type !== "dismissed" && selectedDate) {
-                setScheduledAt(selectedDate);
+              if (selectedDate) {
+                setPendingDate(selectedDate);
               }
             }}
           />
 
           {Platform.OS === "ios" ? (
-            <Button title="Done" onPress={() => setShowDatePicker(false)} />
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 12,
+                marginTop: 8,
+              }}
+            >
+              <Button title="Cancel" onPress={() => setShowDatePicker(false)} />
+              <Button title="Done" onPress={applyDate} />
+            </View>
           ) : null}
-        </>
+        </View>
       ) : null}
 
       {fieldErrors.scheduled_at?.map((fieldError, index) => (
         <Text key={index}>{fieldError.message}</Text>
       ))}
 
-      {initialValues ? (
-        <>
-          <Text>Status</Text>
-
-          <View style={{ borderWidth: 1, borderRadius: 8 }}>
-            <Picker
-              selectedValue={status}
-              onValueChange={(value) => setStatus(String(value))}
-            >
-              <Picker.Item label="Scheduled" value="scheduled" />
-              <Picker.Item label="Completed" value="completed" />
-              <Picker.Item label="Canceled" value="canceled" />
-            </Picker>
-          </View>
-
-          {fieldErrors.status?.map((fieldError, index) => (
-            <Text key={index}>{fieldError.message}</Text>
-          ))}
-        </>
-      ) : null}
+      {/* Duration */}
 
       <Text>Total Appointment Duration</Text>
 
@@ -425,32 +543,30 @@ export function AppointmentForm({
         <Text key={index}>{fieldError.message}</Text>
       ))}
 
-      <Text>Services</Text>
+      {/* Status for existing appointments */}
 
-      {services.map((service) => {
-        const isSelected = selectedServiceIds.includes(service.id);
+      {initialValues ? (
+        <>
+          <Text>Status</Text>
 
-        return (
-          <Button
-            key={service.id}
-            title={
-              isSelected
-                ? `✓ ${service.title} — ${formatDuration(
-                    Number(service.duration_minutes)
-                  )}`
-                : `${service.title} — ${formatDuration(
-                    Number(service.duration_minutes)
-                  )}`
-            }
-            onPress={() => toggleService(service.id)}
-            color={isSelected ? "#444" : undefined}
-          />
-        );
-      })}
+          <View style={{ borderWidth: 1, borderRadius: 8 }}>
+            <Picker
+              selectedValue={status}
+              onValueChange={(value) => setStatus(String(value))}
+            >
+              <Picker.Item label="Scheduled" value="scheduled" />
+              <Picker.Item label="Completed" value="completed" />
+              <Picker.Item label="Canceled" value="canceled" />
+            </Picker>
+          </View>
 
-      {fieldErrors.services?.map((fieldError, index) => (
-        <Text key={index}>{fieldError.message}</Text>
-      ))}
+          {fieldErrors.status?.map((fieldError, index) => (
+            <Text key={index}>{fieldError.message}</Text>
+          ))}
+        </>
+      ) : null}
+
+      {/* Available times for new appointments */}
 
       {!initialValues ? (
         <>
@@ -494,6 +610,25 @@ export function AppointmentForm({
           )}
         </>
       ) : null}
+
+      {/* Notes */}
+
+      <Text>Appointment Notes (Optional)</Text>
+
+      <TextInput
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Add notes specific to this appointment..."
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: 12,
+          minHeight: 100,
+        }}
+      />
 
       {error &&
       (error !== "Validation failed." ||
