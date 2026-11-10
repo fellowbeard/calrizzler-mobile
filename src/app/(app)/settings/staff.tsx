@@ -203,6 +203,55 @@ export default function StaffManagementScreen() {
     );
   }
 
+  function handleActivate(staffUser: StaffUser) {
+    if (
+      user?.role !== "owner" ||
+      staffUser.id === user.id ||
+      staffUser.active ||
+      savingUserId !== null
+    ) {
+      return;
+    }
+
+    Alert.alert(
+      "Reactivate User",
+      `Reactivate ${staffUser.email}? They will regain access to the account.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Activate",
+          onPress: async () => {
+            setSavingUserId(staffUser.id);
+            setStaffError("");
+            setStaffSuccessMessage("");
+
+            try {
+              const updatedUser = (await apiFetch(
+                `/api/v1/users/${staffUser.id}/activate`,
+                { method: "PATCH" }
+              )) as StaffUser;
+
+              setUsers((previous) =>
+                previous.map((item) =>
+                  item.id === updatedUser.id ? updatedUser : item
+                )
+              );
+
+              setStaffSuccessMessage("User reactivated.");
+            } catch (requestError: any) {
+              setStaffError(
+                requestError.validationErrors?.[0]?.message ||
+                  requestError.message
+              );
+            } finally {
+              setSavingUserId(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (user?.role !== "owner") {
     return (
       <View style={{ padding: 24 }}>
@@ -267,7 +316,8 @@ export default function StaffManagementScreen() {
                 key={staffUser.id}
                 style={{
                   borderWidth: 1,
-                  borderColor: "#2424B0",
+                  borderColor: staffUser.active ? "#2424B0" : "#888888",
+                  backgroundColor: staffUser.active ? "transparent" : "#E8E8E8",
                   borderRadius: 8,
                   padding: 16,
                   gap: 10,
@@ -277,7 +327,14 @@ export default function StaffManagementScreen() {
 
                 <Text>{staffUser.email}</Text>
 
-                <Text>Status: {staffUser.active ? "Active" : "Inactive"}</Text>
+                <Text
+                  style={{
+                    color: staffUser.active ? "#1A4040" : "#FF6B1A",
+                    fontWeight: "600",
+                  }}
+                >
+                  Status: {staffUser.active ? "Active" : "Deactivated"}
+                </Text>
 
                 {staffUser.active && !isSelf ? (
                   <View
@@ -317,16 +374,30 @@ export default function StaffManagementScreen() {
 
                 {isSelf ? <Text>Your account</Text> : null}
 
-                {!isSelf && staffUser.active ? (
+                {!staffUser.active && (
+                  <Text style={{ color: "#555555", fontStyle: "italic" }}>
+                    This user no longer has access to the account.
+                  </Text>
+                )}
+
+                {!isSelf && (
                   <Button
                     title={
-                      savingUserId === staffUser.id ? "Saving..." : "Deactivate"
+                      savingUserId === staffUser.id
+                        ? "Saving..."
+                        : staffUser.active
+                          ? "Deactivate"
+                          : "Activate"
                     }
-                    onPress={() => handleDeactivate(staffUser)}
-                    disabled={!canManage}
-                    color="#FF6B1A"
+                    onPress={() =>
+                      staffUser.active
+                        ? handleDeactivate(staffUser)
+                        : handleActivate(staffUser)
+                    }
+                    disabled={savingUserId !== null}
+                    color={staffUser.active ? "#FF6B1A" : "#1A4040"}
                   />
-                ) : null}
+                )}
               </View>
             );
           })}
