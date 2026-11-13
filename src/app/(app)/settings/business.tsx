@@ -11,9 +11,10 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
 import { TIMEZONE_OPTIONS } from "@/utils/dateFormatting";
+import { DAYS, formatTime, sortRanges } from "@/utils/hours";
 
 type WorkingHour = {
   id: number;
@@ -28,27 +29,6 @@ type ZipLookupResponse = {
     "state abbreviation": string;
   }[];
 };
-
-const DAYS = [
-  { label: "Monday", value: 1 },
-  { label: "Tuesday", value: 2 },
-  { label: "Wednesday", value: 3 },
-  { label: "Thursday", value: 4 },
-  { label: "Friday", value: 5 },
-  { label: "Saturday", value: 6 },
-  { label: "Sunday", value: 0 },
-];
-
-function formatTime(value: string) {
-  const match = String(value ?? "").match(/(\d{2}):(\d{2})/);
-
-  if (!match) return value;
-
-  const hour = Number(match[1]);
-  const minute = match[2];
-
-  return `${hour % 12 || 12}:${minute} ${hour < 12 ? "AM" : "PM"}`;
-}
 
 function formatStreetAddress(value: string) {
   return value
@@ -227,11 +207,9 @@ export default function BusinessInformationScreen() {
       setIsEditing(false);
       setZipError("");
       setSettingsSuccessMessage("Business information updated.");
-    } catch (requestError: any) {
+    } catch (requestError) {
       setSettingsError(
-        requestError.validationErrors?.[0]?.message ||
-          requestError.message ||
-          "Unable to update business information."
+        errorMessage(requestError, "Unable to update business information.")
       );
     } finally {
       setIsSavingSettings(false);
@@ -507,9 +485,11 @@ export default function BusinessInformationScreen() {
           <Text>No business hours configured.</Text>
         ) : (
           DAYS.map((day) => {
-            const ranges = workingHours
-              .filter((record) => Number(record.day_of_week) === day.value)
-              .sort((a, b) => a.opens_at.localeCompare(b.opens_at));
+            const ranges = sortRanges(
+              workingHours.filter(
+                (record) => Number(record.day_of_week) === day.value
+              )
+            );
 
             return (
               <View

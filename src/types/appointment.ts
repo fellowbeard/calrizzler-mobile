@@ -1,4 +1,3 @@
-// src/types/appointment.ts
 import type { Resource } from "./resource";
 import type { Service } from "./service";
 
@@ -20,7 +19,5 @@ export type Appointment = {
   notes: string | null;
   duration_minutes: number;
   duration_overridden: boolean;
-  blocking_reservation_time: string;
-  uses_default_duration: boolean;
   services: Service[];
 };

@@ -191,6 +191,14 @@ Reusable form components handle create and edit workflows for the application's 
 
 Calrizzler Mobile communicates with the Calrizzler Rails API.
 
+By default the app calls `http://localhost:3000`, which only works in a simulator on the same machine. To use a physical phone, or to point at another server, create a `.env.local` file (it is gitignored):
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.20:3000
+```
+
+Use your computer's network IP address, then fully reload the app.
+
 The backend is responsible for:
 
 - authentication

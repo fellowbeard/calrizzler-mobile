@@ -1,6 +1,9 @@
-import { getToken } from "../auth/tokenStorage";
+import { getToken } from "@/auth/tokenStorage";
 
-const API_BASE_URL = "http://localhost:3000";
+// Set EXPO_PUBLIC_API_URL in .env.local (gitignored) to reach the API from a phone,
+// e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:3000. Must be read with dot notation
+// so Expo can inline it at build time.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export type ValidationErrorDetail = {
   type: string;
@@ -100,4 +103,18 @@ function normalizeValidationDetails(
       ),
     ])
   );
+}
+
+// A user-facing message for any thrown error. For validation failures this
+// joins the field messages, e.g. "Password is too short (minimum is 8 characters)".
+export function errorMessage(error: unknown, fallback = "Something went wrong.") {
+  if (error instanceof ApiError) {
+    const fieldMessages = Object.values(error.details ?? {})
+      .flat()
+      .map((detail) => detail.message);
+
+    return fieldMessages.join(", ") || error.message || fallback;
+  }
+
+  return error instanceof Error && error.message ? error.message : fallback;
 }

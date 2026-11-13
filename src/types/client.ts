@@ -1,4 +1,3 @@
-// src/types/client.ts
 import type { Appointment } from "./appointment";
 import type { Note } from "./note";
 
