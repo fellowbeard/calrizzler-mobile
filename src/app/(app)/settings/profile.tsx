@@ -12,7 +12,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 
-import { apiFetch, ApiError } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
 import type { User } from "@/types/user";
 
@@ -113,18 +113,7 @@ export default function ProfileScreen() {
     } catch (requestError) {
       console.error("Profile save failed:", requestError);
 
-      if (requestError instanceof ApiError) {
-        setError(
-          Object.values(requestError.details ?? {})
-            .flat()
-            .map((detail) => detail.message)
-            .join(", ") || requestError.message
-        );
-      } else if (requestError instanceof Error) {
-        setError(requestError.message);
-      } else {
-        setError(String(requestError));
-      }
+      setError(errorMessage(requestError));
     } finally {
       setIsSaving(false);
     }

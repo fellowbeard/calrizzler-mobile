@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 
-import { apiFetch, ApiError } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
 import type { User } from "@/types/user";
 
@@ -60,18 +60,7 @@ export default function SecurityScreen() {
     } catch (requestError) {
       console.error("Password update failed:", requestError);
 
-      if (requestError instanceof ApiError) {
-        setError(
-          Object.values(requestError.details ?? {})
-            .flat()
-            .map((detail) => detail.message)
-            .join(", ") || requestError.message
-        );
-      } else if (requestError instanceof Error) {
-        setError(requestError.message);
-      } else {
-        setError(String(requestError));
-      }
+      setError(errorMessage(requestError));
     } finally {
       setIsSaving(false);
     }

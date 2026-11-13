@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, ScrollView, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
 import { ValidatedEmailInput } from "@/components/ValidatedEmailInput";
 
@@ -41,9 +41,9 @@ export default function StaffManagementScreen() {
         if (active) {
           setUsers(data as StaffUser[]);
         }
-      } catch (requestError: any) {
+      } catch (requestError) {
         if (active) {
-          setStaffError(requestError.message);
+          setStaffError(errorMessage(requestError));
         }
       } finally {
         if (active) {
@@ -79,9 +79,9 @@ export default function StaffManagementScreen() {
 
       setEmail("");
       setInviteSuccessMessage("Invitation sent.");
-    } catch (requestError: any) {
+    } catch (requestError) {
       setInviteError(
-        requestError.validationErrors?.[0]?.message || requestError.message
+        errorMessage(requestError)
       );
     } finally {
       setIsSending(false);
@@ -124,9 +124,9 @@ export default function StaffManagementScreen() {
       );
 
       setStaffSuccessMessage("User role updated.");
-    } catch (requestError: any) {
+    } catch (requestError) {
       setStaffError(
-        requestError.validationErrors?.[0]?.message || requestError.message
+        errorMessage(requestError)
       );
     } finally {
       setSavingUserId(null);
@@ -189,10 +189,9 @@ export default function StaffManagementScreen() {
               );
 
               setStaffSuccessMessage("User deactivated.");
-            } catch (requestError: any) {
+            } catch (requestError) {
               setStaffError(
-                requestError.validationErrors?.[0]?.message ||
-                  requestError.message
+                errorMessage(requestError)
               );
             } finally {
               setSavingUserId(null);
@@ -238,10 +237,9 @@ export default function StaffManagementScreen() {
               );
 
               setStaffSuccessMessage("User reactivated.");
-            } catch (requestError: any) {
+            } catch (requestError) {
               setStaffError(
-                requestError.validationErrors?.[0]?.message ||
-                  requestError.message
+                errorMessage(requestError)
               );
             } finally {
               setSavingUserId(null);

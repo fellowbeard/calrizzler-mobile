@@ -3,8 +3,9 @@ const expoConfig = require("eslint-config-expo/flat");
 
 module.exports = defineConfig([
   expoConfig,
+  // An object with only `ignores` is a global ignore in flat config.
+  { ignores: ["dist/*", ".expo/*"] },
   {
-    ignores: ["dist/*"],
     rules: {
       "react-hooks/set-state-in-effect": "off",
 
