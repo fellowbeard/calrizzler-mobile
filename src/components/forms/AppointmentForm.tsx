@@ -21,7 +21,6 @@ import type { Service } from "@/types/service";
 import {
   appointmentToPickerDate,
   currentTimeForPicker,
-  formatPickerDateTime,
   formatTime,
   pickerDateToScheduledAt,
 } from "@/utils/dateFormatting";
@@ -80,11 +79,6 @@ export function AppointmentForm({
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [pendingDate, setPendingDate] = useState<Date>(() =>
-    currentTimeForPicker(timezone)
-  );
-
   const [status, setStatus] = useState("scheduled");
   const [notes, setNotes] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
@@ -129,6 +123,7 @@ export function AppointmentForm({
     setSelectedServiceIds(
       initialValues?.services?.map((service) => service.id) ?? []
     );
+
     setServiceToAdd("");
   }, [initialValues, initialClientId, timezone]);
 
@@ -239,16 +234,6 @@ export function AppointmentForm({
 
     setDurationMinutes(totalDuration > 0 ? String(totalDuration) : "");
     setHasManualDurationOverride(false);
-  }
-
-  function openDatePicker() {
-    setPendingDate(new Date(scheduledAt));
-    setShowDatePicker(true);
-  }
-
-  function applyDate() {
-    setScheduledAt(pendingDate);
-    setShowDatePicker(false);
   }
 
   function handleSubmit() {
@@ -451,55 +436,42 @@ export function AppointmentForm({
 
       <Text>{initialValues ? "Scheduled At" : "Appointment Date"}</Text>
 
-      <Button
-        title={
-          initialValues
-            ? formatPickerDateTime(scheduledAt)
-            : scheduledAt.toLocaleDateString("en-US")
-        }
-        onPress={openDatePicker}
-      />
+      <View
+        style={{
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: 12,
+          gap: 8,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            textAlign: "center",
+          }}
+        >
+          {scheduledAt.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </Text>
+
+        <DateTimePicker
+          value={scheduledAt}
+          mode={initialValues ? "datetime" : "date"}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event, selectedDate) => {
+            if (event.type === "set" && selectedDate) {
+              setScheduledAt(selectedDate);
+            }
+          }}
+        />
+      </View>
 
       <Text>Business timezone: {timezone}</Text>
-
-      {showDatePicker ? (
-        <View style={{ marginBottom: 12 }}>
-          <DateTimePicker
-            value={pendingDate}
-            mode={initialValues ? "datetime" : "date"}
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={(event, selectedDate) => {
-              if (Platform.OS === "android") {
-                setShowDatePicker(false);
-
-                if (event.type === "set" && selectedDate) {
-                  setScheduledAt(selectedDate);
-                }
-
-                return;
-              }
-
-              if (selectedDate) {
-                setPendingDate(selectedDate);
-              }
-            }}
-          />
-
-          {Platform.OS === "ios" ? (
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "flex-end",
-                gap: 12,
-                marginTop: 8,
-              }}
-            >
-              <Button title="Cancel" onPress={() => setShowDatePicker(false)} />
-              <Button title="Done" onPress={applyDate} />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
 
       {fieldErrors.scheduled_at?.map((fieldError, index) => (
         <Text key={index}>{fieldError.message}</Text>
