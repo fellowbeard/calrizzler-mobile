@@ -3,18 +3,20 @@ import { router } from "expo-router";
 import { Button, ScrollView, Switch, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
+import {
+  DAYS,
+  DEFAULT_RANGE,
+  TIME_OPTIONS,
+  normalizeTime,
+  validateRanges,
+  type TimeRange,
+} from "@/utils/hours";
 
 type WorkingHour = {
   id: number;
   day_of_week: number;
-  opens_at: string;
-  closes_at: string;
-};
-
-type TimeRange = {
-  id?: number;
   opens_at: string;
   closes_at: string;
 };
@@ -32,38 +34,6 @@ type ScheduleError = {
   message: string;
 };
 
-const DAYS = [
-  { label: "Monday", value: 1 },
-  { label: "Tuesday", value: 2 },
-  { label: "Wednesday", value: 3 },
-  { label: "Thursday", value: 4 },
-  { label: "Friday", value: 5 },
-  { label: "Saturday", value: 6 },
-  { label: "Sunday", value: 0 },
-];
-
-const DEFAULT_RANGE = {
-  opens_at: "09:00",
-  closes_at: "17:00",
-};
-
-const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
-  const hour = Math.floor(index / 4);
-  const minute = (index % 4) * 15;
-
-  return {
-    value: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
-    label: `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${
-      hour < 12 ? "AM" : "PM"
-    }`,
-  };
-});
-
-function normalizeTime(value: string) {
-  const match = String(value ?? "").match(/(\d{2}):(\d{2})/);
-  return match ? `${match[1]}:${match[2]}` : "";
-}
-
 function initialSchedule(): ScheduleDay[] {
   return DAYS.map((day, index) => ({
     ...day,
@@ -78,7 +48,6 @@ function buildSchedule(records: WorkingHour[]): ScheduleDay[] {
     const ranges = records
       .filter((record) => Number(record.day_of_week) === day.value)
       .map((record) => ({
-        id: record.id,
         opens_at: normalizeTime(record.opens_at),
         closes_at: normalizeTime(record.closes_at),
       }))
@@ -97,55 +66,12 @@ function validateSchedule(schedule: ScheduleDay[]): ScheduleError | null {
   for (const day of schedule) {
     if (!day.isOpen) continue;
 
-    if (!day.ranges.length) {
-      return {
-        day: day.value,
-        message: `${day.label}: Add at least one time range.`,
-      };
-    }
+    const message = validateRanges(day.ranges);
 
-    const ranges = [...day.ranges].sort((a, b) =>
-      a.opens_at.localeCompare(b.opens_at)
-    );
-
-    for (let index = 0; index < ranges.length; index++) {
-      const range = ranges[index];
-
-      if (!range.opens_at || !range.closes_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Select opening and closing times.`,
-        };
-      }
-
-      if (range.opens_at >= range.closes_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Closing time must be after opening time.`,
-        };
-      }
-
-      if (index > 0 && ranges[index - 1].closes_at > range.opens_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Working hours cannot overlap.`,
-        };
-      }
-    }
+    if (message) return { day: day.value, message: `${day.label}: ${message}` };
   }
 
   return null;
-}
-
-function sameRange(
-  record: WorkingHour,
-  range: TimeRange & { day_of_week: number }
-) {
-  return (
-    record.day_of_week === range.day_of_week &&
-    normalizeTime(record.opens_at) === range.opens_at &&
-    normalizeTime(record.closes_at) === range.closes_at
-  );
 }
 
 export default function BusinessHoursScreen() {
@@ -153,7 +79,6 @@ export default function BusinessHoursScreen() {
   const isOwner = user?.role === "owner";
 
   const [schedule, setSchedule] = useState(initialSchedule);
-  const [savedRecords, setSavedRecords] = useState<WorkingHour[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -171,7 +96,6 @@ export default function BusinessHoursScreen() {
 
         const records = response as WorkingHour[];
 
-        setSavedRecords(records);
         setSchedule(
           records.length ? buildSchedule(records) : initialSchedule()
         );
@@ -227,11 +151,7 @@ export default function BusinessHoursScreen() {
           return {
             ...day,
             isOpen: monday.isOpen,
-            ranges: monday.ranges.map((range, rangeIndex) => ({
-              id: day.ranges[rangeIndex]?.id,
-              opens_at: range.opens_at,
-              closes_at: range.closes_at,
-            })),
+            ranges: monday.ranges.map((range) => ({ ...range })),
           };
         });
       }
@@ -297,11 +217,7 @@ export default function BusinessHoursScreen() {
               ...day,
               isOpen: previous[0].isOpen,
               customized: false,
-              ranges: previous[0].ranges.map((range, rangeIndex) => ({
-                id: day.ranges[rangeIndex]?.id,
-                opens_at: range.opens_at,
-                closes_at: range.closes_at,
-              })),
+              ranges: previous[0].ranges.map((range) => ({ ...range })),
             }
           : day
       )
@@ -324,96 +240,26 @@ export default function BusinessHoursScreen() {
     clearMessages();
 
     try {
-      const desiredRanges = schedule.flatMap((day) =>
+      const workingHours = schedule.flatMap((day) =>
         day.isOpen
-          ? day.ranges.map((range) => ({
-              ...range,
+          ? day.ranges.map(({ opens_at, closes_at }) => ({
               day_of_week: day.value,
+              opens_at,
+              closes_at,
             }))
           : []
       );
 
-      const savedById = new Map(
-        savedRecords.map((record) => [record.id, record])
-      );
-
-      const desiredIds = new Set(
-        desiredRanges
-          .filter((range) => range.id != null)
-          .map((range) => range.id)
-      );
-
-      const recordsToDelete = savedRecords.filter(
-        (record) => !desiredIds.has(record.id)
-      );
-
-      const rangesToUpdate = desiredRanges.filter((range) => {
-        if (range.id == null) return false;
-
-        const saved = savedById.get(range.id);
-        return saved && !sameRange(saved, range);
+      // One request; the server swaps the whole week in a transaction,
+      // so a failure leaves the saved hours untouched.
+      await apiFetch("/api/v1/working_hours/replace", {
+        method: "PUT",
+        body: JSON.stringify({ working_hours: workingHours }),
       });
 
-      const rangesToCreate = desiredRanges.filter((range) => range.id == null);
-
-      // Delete removed ranges first.
-      for (const record of recordsToDelete) {
-        await apiFetch(`/api/v1/working_hours/${record.id}`, {
-          method: "DELETE",
-        });
-      }
-
-      // Replace changed ranges to avoid temporary overlap conflicts.
-      for (const range of rangesToUpdate) {
-        await apiFetch(`/api/v1/working_hours/${range.id}`, {
-          method: "DELETE",
-        });
-      }
-
-      const newRanges = [...rangesToUpdate, ...rangesToCreate].sort(
-        (a, b) =>
-          a.day_of_week - b.day_of_week || a.opens_at.localeCompare(b.opens_at)
-      );
-
-      for (const range of newRanges) {
-        await apiFetch("/api/v1/working_hours", {
-          method: "POST",
-          body: JSON.stringify({
-            working_hour: {
-              day_of_week: range.day_of_week,
-              opens_at: range.opens_at,
-              closes_at: range.closes_at,
-            },
-          }),
-        });
-      }
-
-      const refreshed = (await apiFetch(
-        "/api/v1/working_hours"
-      )) as WorkingHour[];
-
-      setSavedRecords(refreshed);
-      setSchedule(buildSchedule(refreshed));
-
-      // Return to the Settings menu after a successful save.
       router.replace("/settings");
-    } catch (requestError: any) {
-      setError(
-        requestError.validationErrors?.[0]?.message || requestError.message
-      );
-
-      // Individual API requests are not atomic.
-      // Reload the actual saved state after a failure.
-      try {
-        const refreshed = (await apiFetch(
-          "/api/v1/working_hours"
-        )) as WorkingHour[];
-
-        setSavedRecords(refreshed);
-        setSchedule(buildSchedule(refreshed));
-      } catch {
-        // Preserve the original error.
-      }
+    } catch (requestError) {
+      setError(errorMessage(requestError));
     } finally {
       setIsSaving(false);
     }
@@ -485,7 +331,7 @@ export default function BusinessHoursScreen() {
 
           {day.isOpen &&
             day.ranges.map((range, rangeIndex) => (
-              <View key={range.id ?? `new-${rangeIndex}`} style={{ gap: 8 }}>
+              <View key={rangeIndex} style={{ gap: 8 }}>
                 {isOwner ? (
                   <>
                     <Text>Opens</Text>

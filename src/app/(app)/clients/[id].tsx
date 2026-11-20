@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocalSearchParams } from "expo-router";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { canWrite } from "@/auth/permissions";
 import { useAuth } from "@/auth/useAuth";
 import { useClient } from "@/hooks/useClient";
@@ -95,11 +95,9 @@ export default function ClientDetailScreen() {
 
       setNewNoteBody("");
       setIsAddingNote(false);
-    } catch (requestError: any) {
+    } catch (requestError) {
       setNoteError(
-        requestError.validationErrors?.[0]?.message ||
-          requestError.message ||
-          "Unable to add note."
+        errorMessage(requestError, "Unable to add note.")
       );
     } finally {
       setIsSavingNote(false);
@@ -143,11 +141,9 @@ export default function ClientDetailScreen() {
 
       setEditingNoteId(null);
       setEditingBody("");
-    } catch (requestError: any) {
+    } catch (requestError) {
       setNoteError(
-        requestError.validationErrors?.[0]?.message ||
-          requestError.message ||
-          "Unable to update note."
+        errorMessage(requestError, "Unable to update note.")
       );
     } finally {
       setIsSavingNote(false);

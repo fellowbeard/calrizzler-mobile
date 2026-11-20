@@ -2,7 +2,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 import { Button, Text, TextInput, View } from "react-native";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
 import type { LoginResponse } from "@/types/auth";
 
@@ -31,8 +31,8 @@ export default function LoginScreen() {
       await signIn(data.token);
 
       router.replace("/dashboard");
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error) {
+      setError(errorMessage(error, "Unable to log in."));
     } finally {
       setIsLoading(false);
     }

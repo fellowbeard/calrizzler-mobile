@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { apiFetch } from "../api/client";
-import type { ClientDetail } from "../types/client";
+import { apiFetch } from "@/api/client";
+import type { ClientDetail } from "@/types/client";
 
 export function useClient(id: string | string[] | undefined) {
   const [client, setClient] = useState<ClientDetail | null>(null);

@@ -347,6 +347,7 @@ export function AppointmentForm({
 
       <View style={{ borderWidth: 1, borderRadius: 8 }}>
         <Picker
+          testID="service-picker"
           selectedValue={serviceToAdd}
           onValueChange={(value) => setServiceToAdd(String(value))}
         >

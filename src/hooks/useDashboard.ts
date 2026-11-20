@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 
-import { apiFetch } from "../api/client";
-import type { DashboardData } from "../types/dashboard";
+import { apiFetch } from "@/api/client";
+import type { DashboardData } from "@/types/dashboard";
 
 export function useDashboard() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);

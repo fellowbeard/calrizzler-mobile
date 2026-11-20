@@ -1,12 +1,16 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { AppointmentForm } from "./AppointmentForm";
 
+jest.mock("@/api/availability", () => ({
+  fetchAvailability: jest.fn().mockResolvedValue({ slots: [], candidate_slots: [] }),
+}));
+
 describe("AppointmentForm", () => {
   it("calculates service duration and submits appointment values", async () => {
     const onSubmit = jest.fn();
     const onNewClient = jest.fn();
 
-    const { getByRole, getByText } = await render(
+    const { getByRole, getByTestId, getByText } = await render(
       <AppointmentForm
         timezone="America/New_York"
         initialClientId="1"
@@ -22,8 +26,6 @@ describe("AppointmentForm", () => {
           notes: null,
           duration_minutes: 0,
           duration_overridden: false,
-          blocking_reservation_time: "0",
-          uses_default_duration: false,
           services: [],
         }}
         clients={[
@@ -58,13 +60,18 @@ describe("AppointmentForm", () => {
       />
     );
 
-    fireEvent.press(getByRole("button", { name: /Consultation/ }));
+    // Services are chosen from a picker, then added with the "Add Service" button.
+    // The native picker reports a selection through onChange with the new value and index.
+    await fireEvent(getByTestId("service-picker"), "change", {
+      nativeEvent: { newValue: "2", newIndex: 1 },
+    });
+    await fireEvent.press(getByRole("button", { name: "Add Service" }));
 
     await waitFor(() =>
       expect(getByText("Total time: 45 minutes")).toBeTruthy()
     );
 
-    fireEvent.press(getByRole("button", { name: "Create Appointment" }));
+    await fireEvent.press(getByRole("button", { name: "Create Appointment" }));
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({

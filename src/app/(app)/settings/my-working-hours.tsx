@@ -3,8 +3,18 @@ import { router, useFocusEffect } from "expo-router";
 import { Button, ScrollView, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
-import { apiFetch } from "@/api/client";
+import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
+import {
+  DAYS,
+  DEFAULT_RANGE,
+  TIME_OPTIONS,
+  formatRanges,
+  formatTime,
+  normalizeTime,
+  validateRanges,
+  type TimeRange,
+} from "@/utils/hours";
 
 type WorkingHour = {
   id: number;
@@ -12,11 +22,6 @@ type WorkingHour = {
   opens_at: string | null;
   closes_at: string | null;
   is_closed?: boolean;
-};
-
-type TimeRange = {
-  opens_at: string;
-  closes_at: string;
 };
 
 type DayMode = "inherit" | "custom" | "closed";
@@ -32,46 +37,6 @@ type ScheduleError = {
   day: number;
   message: string;
 };
-
-const DAYS = [
-  { label: "Monday", value: 1 },
-  { label: "Tuesday", value: 2 },
-  { label: "Wednesday", value: 3 },
-  { label: "Thursday", value: 4 },
-  { label: "Friday", value: 5 },
-  { label: "Saturday", value: 6 },
-  { label: "Sunday", value: 0 },
-];
-
-const DEFAULT_RANGE: TimeRange = {
-  opens_at: "09:00",
-  closes_at: "17:00",
-};
-
-const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
-  const hour = Math.floor(index / 4);
-  const minute = (index % 4) * 15;
-
-  return {
-    value: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
-    label: `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${
-      hour < 12 ? "AM" : "PM"
-    }`,
-  };
-});
-
-function normalizeTime(value: string | null) {
-  const match = String(value ?? "").match(/(\d{2}):(\d{2})/);
-
-  return match ? `${match[1]}:${match[2]}` : "";
-}
-
-function formatTime(value: string | null) {
-  const normalized = normalizeTime(value);
-  const option = TIME_OPTIONS.find((item) => item.value === normalized);
-
-  return option?.label ?? normalized;
-}
 
 function emptySchedule(): ScheduleDay[] {
   return DAYS.map((day) => ({
@@ -120,65 +85,12 @@ function validateSchedule(schedule: ScheduleDay[]): ScheduleError | null {
   for (const day of schedule) {
     if (day.mode !== "custom") continue;
 
-    if (day.ranges.length === 0) {
-      return {
-        day: day.value,
-        message: `${day.label}: Add at least one time range.`,
-      };
-    }
+    const message = validateRanges(day.ranges);
 
-    const ranges = [...day.ranges].sort((a, b) =>
-      a.opens_at.localeCompare(b.opens_at)
-    );
-
-    for (let index = 0; index < ranges.length; index++) {
-      const range = ranges[index];
-
-      if (!range.opens_at || !range.closes_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Select opening and closing times.`,
-        };
-      }
-
-      if (range.opens_at >= range.closes_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Closing time must be after opening time.`,
-        };
-      }
-
-      if (index > 0 && ranges[index - 1].closes_at > range.opens_at) {
-        return {
-          day: day.value,
-          message: `${day.label}: Working hours cannot overlap.`,
-        };
-      }
-    }
+    if (message) return { day: day.value, message: `${day.label}: ${message}` };
   }
 
   return null;
-}
-
-function sameDay(day: ScheduleDay, records: WorkingHour[]) {
-  const saved = buildSchedule(records).find((item) => item.value === day.value);
-
-  if (!saved || saved.mode !== day.mode) return false;
-
-  if (day.mode !== "custom") return true;
-
-  const desiredRanges = [...day.ranges].sort((a, b) =>
-    a.opens_at.localeCompare(b.opens_at)
-  );
-
-  return (
-    saved.ranges.length === desiredRanges.length &&
-    saved.ranges.every(
-      (range, index) =>
-        range.opens_at === desiredRanges[index].opens_at &&
-        range.closes_at === desiredRanges[index].closes_at
-    )
-  );
 }
 
 function WeeklyScheduleSummary({
@@ -202,9 +114,9 @@ function WeeklyScheduleSummary({
       </Text>
 
       {schedule.map((day) => {
-        const inheritedRanges = businessHours
-          .filter((record) => Number(record.day_of_week) === day.value)
-          .sort((a, b) => String(a.opens_at).localeCompare(String(b.opens_at)));
+        const inheritedRanges = businessHours.filter(
+          (record) => Number(record.day_of_week) === day.value
+        );
 
         let description: string;
 
@@ -214,19 +126,9 @@ function WeeklyScheduleSummary({
           description =
             inheritedRanges.length === 0
               ? "Closed (Business Hours)"
-              : inheritedRanges
-                  .map(
-                    (range) =>
-                      `${formatTime(range.opens_at)} – ${formatTime(range.closes_at)}`
-                  )
-                  .join(", ") + " (Business Hours)";
+              : `${formatRanges(inheritedRanges)} (Business Hours)`;
         } else {
-          description = day.ranges
-            .map(
-              (range) =>
-                `${formatTime(range.opens_at)} – ${formatTime(range.closes_at)}`
-            )
-            .join(", ");
+          description = formatRanges(day.ranges);
         }
 
         return (
@@ -288,9 +190,9 @@ export default function MyWorkingHoursScreen() {
           setSavedRecords(personal);
           setBusinessHours(business);
           setSchedule(buildSchedule(personal));
-        } catch (requestError: any) {
+        } catch (requestError) {
           if (active) {
-            setError(requestError.message);
+            setError(errorMessage(requestError));
           }
         } finally {
           if (active) setIsLoading(false);
@@ -405,68 +307,32 @@ export default function MyWorkingHoursScreen() {
     clearError();
 
     try {
-      const changedDays = schedule.filter((day) => !sameDay(day, savedRecords));
-
-      for (const day of changedDays) {
-        const existing = savedRecords.filter(
-          (record) => Number(record.day_of_week) === day.value
-        );
-
-        // Remove the previous configuration for this day.
-        for (const record of existing) {
-          await apiFetch(`/api/v1/user_working_hours/${record.id}`, {
-            method: "DELETE",
-          });
-        }
-
+      const userWorkingHours = schedule.flatMap((day) => {
         if (day.mode === "closed") {
-          await apiFetch(`/api/v1/users/${user.id}/user_working_hours`, {
-            method: "POST",
-            body: JSON.stringify({
-              user_working_hour: {
-                day_of_week: day.value,
-                is_closed: true,
-              },
-            }),
-          });
+          return [{ day_of_week: day.value, is_closed: true }];
         }
 
         if (day.mode === "custom") {
-          for (const range of day.ranges) {
-            await apiFetch(`/api/v1/users/${user.id}/user_working_hours`, {
-              method: "POST",
-              body: JSON.stringify({
-                user_working_hour: {
-                  day_of_week: day.value,
-                  opens_at: range.opens_at,
-                  closes_at: range.closes_at,
-                  is_closed: false,
-                },
-              }),
-            });
-          }
+          return day.ranges.map(({ opens_at, closes_at }) => ({
+            day_of_week: day.value,
+            opens_at,
+            closes_at,
+            is_closed: false,
+          }));
         }
 
-        // "inherit" creates no personal records.
-      }
+        return []; // "inherit": no rows means the day follows business hours
+      });
+
+      // One request; the server swaps the whole week in a transaction.
+      await apiFetch(`/api/v1/users/${user.id}/user_working_hours/replace`, {
+        method: "PUT",
+        body: JSON.stringify({ user_working_hours: userWorkingHours }),
+      });
 
       router.replace("/settings");
-    } catch (requestError: any) {
-      setError(
-        requestError.validationErrors?.[0]?.message || requestError.message
-      );
-
-      // Requests are not atomic. Reload the actual saved state.
-      try {
-        const refreshed = await apiFetch<WorkingHour[]>(
-          `/api/v1/users/${user.id}/user_working_hours`
-        );
-
-        setSavedRecords(refreshed);
-        setSchedule(buildSchedule(refreshed));
-      } catch {
-        // Preserve the original error.
-      }
+    } catch (requestError) {
+      setError(errorMessage(requestError));
     } finally {
       setIsSaving(false);
     }
