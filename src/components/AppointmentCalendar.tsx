@@ -16,6 +16,7 @@ type CalendarAppointment = {
   scheduled_at: string;
   duration_minutes: number;
   services?: { id: number; title: string }[];
+  status: "scheduled" | "completed" | "canceled";
   notes?: string | null;
 };
 
@@ -80,7 +81,9 @@ export function AppointmentCalendar({ timezone }: AppointmentCalendarProps) {
 
   const visibleAppointments = useMemo(() => {
     return appointments.filter(
-      (appointment) => filter === "all" || appointment.user_id === user?.id
+      (appointment) =>
+        appointment.status !== "canceled" &&
+        (filter === "all" || appointment.user_id === user?.id)
     );
   }, [appointments, filter, user?.id]);
 
