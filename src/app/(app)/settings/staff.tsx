@@ -80,9 +80,7 @@ export default function StaffManagementScreen() {
       setEmail("");
       setInviteSuccessMessage("Invitation sent.");
     } catch (requestError) {
-      setInviteError(
-        errorMessage(requestError)
-      );
+      setInviteError(errorMessage(requestError));
     } finally {
       setIsSending(false);
     }
@@ -125,9 +123,7 @@ export default function StaffManagementScreen() {
 
       setStaffSuccessMessage("User role updated.");
     } catch (requestError) {
-      setStaffError(
-        errorMessage(requestError)
-      );
+      setStaffError(errorMessage(requestError));
     } finally {
       setSavingUserId(null);
     }
@@ -166,7 +162,7 @@ export default function StaffManagementScreen() {
 
     Alert.alert(
       "Deactivate User",
-      `Deactivate ${staffUser.email}? They will no longer be able to access the account.`,
+      `Deactivate ${staffUser.email}? They will no longer be able to access the account, and all future appointments will be canceled.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -190,9 +186,7 @@ export default function StaffManagementScreen() {
 
               setStaffSuccessMessage("User deactivated.");
             } catch (requestError) {
-              setStaffError(
-                errorMessage(requestError)
-              );
+              setStaffError(errorMessage(requestError));
             } finally {
               setSavingUserId(null);
             }
@@ -238,9 +232,7 @@ export default function StaffManagementScreen() {
 
               setStaffSuccessMessage("User reactivated.");
             } catch (requestError) {
-              setStaffError(
-                errorMessage(requestError)
-              );
+              setStaffError(errorMessage(requestError));
             } finally {
               setSavingUserId(null);
             }

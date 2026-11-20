@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect, router } from "expo-router";
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import { Picker } from "@react-native-picker/picker";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import { useAuth } from "@/auth/useAuth";
+import { useZipLookup } from "@/hooks/useZipLookup";
 import { TIMEZONE_OPTIONS } from "@/utils/dateFormatting";
 import { DAYS, formatTime, sortRanges } from "@/utils/hours";
 
@@ -21,13 +22,6 @@ type WorkingHour = {
   day_of_week: number;
   opens_at: string;
   closes_at: string;
-};
-
-type ZipLookupResponse = {
-  places?: {
-    "place name": string;
-    "state abbreviation": string;
-  }[];
 };
 
 function formatStreetAddress(value: string) {
@@ -57,10 +51,7 @@ export default function BusinessInformationScreen() {
   const [settingsSuccessMessage, setSettingsSuccessMessage] = useState("");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  const [isLookingUpZip, setIsLookingUpZip] = useState(false);
-  const [zipError, setZipError] = useState("");
-
-  const zipRequestId = useRef(0);
+  const { lookupZip, cancelLookup, isLookingUpZip, zipError } = useZipLookup();
 
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [isLoadingHours, setIsLoadingHours] = useState(true);
@@ -68,6 +59,8 @@ export default function BusinessInformationScreen() {
 
   useEffect(() => {
     if (!account) return;
+
+    cancelLookup();
 
     setBusinessName(account.business_name ?? "");
     setTimezone(account.timezone ?? "America/Denver");
@@ -77,7 +70,7 @@ export default function BusinessInformationScreen() {
     setCity(account.city ?? "");
     setState(account.state ?? "");
     setPostalCode(account.postal_code ?? "");
-  }, [account]);
+  }, [account, cancelLookup]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,65 +111,37 @@ export default function BusinessInformationScreen() {
   }
 
   function handleCancelEditing() {
-    zipRequestId.current += 1;
-    setIsLookingUpZip(false);
-    setZipError("");
+    cancelLookup();
     resetForm();
     setSettingsError("");
     setIsEditing(false);
   }
 
-  async function handleZipChange(value: string) {
+  function handleZipChange(value: string) {
     const zip = value.replace(/\D/g, "").slice(0, 5);
 
     setPostalCode(zip);
-    setZipError("");
 
-    zipRequestId.current += 1;
-    const requestId = zipRequestId.current;
+    void lookupZip(zip, ({ city, state }) => {
+      setCity(city);
+      setState(state);
+    });
+  }
 
-    if (zip.length !== 5) {
-      setIsLookingUpZip(false);
-      return;
-    }
+  function handleCityChange(value: string) {
+    cancelLookup();
+    setCity(value);
+  }
 
-    setIsLookingUpZip(true);
-
-    try {
-      const response = await fetch(`https://api.zippopotam.us/us/${zip}`);
-
-      if (!response.ok) {
-        throw new Error("ZIP code not found.");
-      }
-
-      const data: ZipLookupResponse = await response.json();
-      const place = data.places?.[0];
-
-      if (!place) {
-        throw new Error("No city or state found for this ZIP code.");
-      }
-
-      if (requestId !== zipRequestId.current) return;
-
-      setCity(place["place name"]);
-      setState(place["state abbreviation"]);
-    } catch (requestError) {
-      if (requestId !== zipRequestId.current) return;
-
-      setZipError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to look up ZIP code."
-      );
-    } finally {
-      if (requestId === zipRequestId.current) {
-        setIsLookingUpZip(false);
-      }
-    }
+  function handleStateChange(value: string) {
+    cancelLookup();
+    setState(value);
   }
 
   async function handleSaveSettings() {
     if (!isOwner || isSavingSettings) return;
+
+    cancelLookup();
 
     setSettingsError("");
     setSettingsSuccessMessage("");
@@ -199,13 +164,9 @@ export default function BusinessInformationScreen() {
         }),
       });
 
-      zipRequestId.current += 1;
-      setIsLookingUpZip(false);
-
       await refreshAccount();
 
       setIsEditing(false);
-      setZipError("");
       setSettingsSuccessMessage("Business information updated.");
     } catch (requestError) {
       setSettingsError(
@@ -304,10 +265,10 @@ export default function BusinessInformationScreen() {
           {isOwner && (
             <Pressable
               onPress={() => {
+                cancelLookup();
                 resetForm();
                 setSettingsError("");
                 setSettingsSuccessMessage("");
-                setZipError("");
                 setIsEditing(true);
               }}
               accessibilityRole="button"
@@ -427,7 +388,7 @@ export default function BusinessInformationScreen() {
             <Text style={labelStyle}>City</Text>
             <TextInput
               value={city}
-              onChangeText={setCity}
+              onChangeText={handleCityChange}
               editable={!isSavingSettings}
               autoCapitalize="words"
               placeholder="City"
@@ -439,7 +400,7 @@ export default function BusinessInformationScreen() {
             <Text style={labelStyle}>State</Text>
             <TextInput
               value={state}
-              onChangeText={setState}
+              onChangeText={handleStateChange}
               editable={!isSavingSettings}
               autoCapitalize="characters"
               maxLength={2}

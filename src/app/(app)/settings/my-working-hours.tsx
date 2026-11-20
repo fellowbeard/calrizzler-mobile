@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
-import { Button, ScrollView, Text, View } from "react-native";
+
+import { useFocusEffect } from "expo-router";
+import { Button, Pressable, ScrollView, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
 import { apiFetch, errorMessage } from "@/api/client";
@@ -15,6 +16,7 @@ import {
   validateRanges,
   type TimeRange,
 } from "@/utils/hours";
+import { Ionicons } from "@expo/vector-icons";
 
 type WorkingHour = {
   id: number;
@@ -31,11 +33,6 @@ type ScheduleDay = {
   value: number;
   mode: DayMode;
   ranges: TimeRange[];
-};
-
-type ScheduleError = {
-  day: number;
-  message: string;
 };
 
 function emptySchedule(): ScheduleDay[] {
@@ -81,16 +78,24 @@ function buildSchedule(records: WorkingHour[]): ScheduleDay[] {
   });
 }
 
-function validateSchedule(schedule: ScheduleDay[]): ScheduleError | null {
-  for (const day of schedule) {
-    if (day.mode !== "custom") continue;
+function serializeSchedule(scheduleDays: ScheduleDay[]) {
+  return scheduleDays.flatMap((day) => {
+    if (day.mode === "closed") {
+      return [{ day_of_week: day.value, is_closed: true }];
+    }
 
-    const message = validateRanges(day.ranges);
+    if (day.mode === "custom") {
+      return day.ranges.map(({ opens_at, closes_at }) => ({
+        day_of_week: day.value,
+        opens_at,
+        closes_at,
+        is_closed: false,
+      }));
+    }
 
-    if (message) return { day: day.value, message: `${day.label}: ${message}` };
-  }
-
-  return null;
+    // No records means this day inherits business hours.
+    return [];
+  });
 }
 
 function WeeklyScheduleSummary({
@@ -115,7 +120,8 @@ function WeeklyScheduleSummary({
 
       {schedule.map((day) => {
         const inheritedRanges = businessHours.filter(
-          (record) => Number(record.day_of_week) === day.value
+          (record) =>
+            Number(record.day_of_week) === day.value && !record.is_closed
         );
 
         let description: string;
@@ -155,7 +161,7 @@ export default function MyWorkingHoursScreen() {
 
   const canEdit = user?.role === "owner" || user?.role === "staff";
 
-  const [schedule, setSchedule] = useState(emptySchedule);
+  const [schedule, setSchedule] = useState<ScheduleDay[]>(emptySchedule);
   const [businessHours, setBusinessHours] = useState<WorkingHour[]>([]);
   const [savedRecords, setSavedRecords] = useState<WorkingHour[]>([]);
 
@@ -163,6 +169,7 @@ export default function MyWorkingHoursScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [errorDay, setErrorDay] = useState<number | null>(null);
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const dayPositions = useRef<Record<number, number>>({});
@@ -190,6 +197,7 @@ export default function MyWorkingHoursScreen() {
           setSavedRecords(personal);
           setBusinessHours(business);
           setSchedule(buildSchedule(personal));
+          setExpandedDay(null);
         } catch (requestError) {
           if (active) {
             setError(errorMessage(requestError));
@@ -227,7 +235,10 @@ export default function MyWorkingHoursScreen() {
     updateDay(dayIndex, (day) => {
       if (mode === "custom") {
         const businessRanges = businessHours
-          .filter((record) => Number(record.day_of_week) === day.value)
+          .filter(
+            (record) =>
+              Number(record.day_of_week) === day.value && !record.is_closed
+          )
           .map((record) => ({
             opens_at: normalizeTime(record.opens_at),
             closes_at: normalizeTime(record.closes_at),
@@ -291,15 +302,18 @@ export default function MyWorkingHoursScreen() {
     });
   }
 
-  async function handleSave() {
+  async function handleSaveDay(dayIndex: number) {
     if (!user?.id || !canEdit || isSaving) return;
 
-    const validationError = validateSchedule(schedule);
+    const editedDay = schedule[dayIndex];
+
+    const validationError =
+      editedDay.mode === "custom" ? validateRanges(editedDay.ranges) : null;
 
     if (validationError) {
-      setError(validationError.message);
-      setErrorDay(validationError.day);
-      scrollToDay(validationError.day);
+      setError(`${editedDay.label}: ${validationError}`);
+      setErrorDay(editedDay.value);
+      scrollToDay(editedDay.value);
       return;
     }
 
@@ -307,32 +321,42 @@ export default function MyWorkingHoursScreen() {
     clearError();
 
     try {
-      const userWorkingHours = schedule.flatMap((day) => {
-        if (day.mode === "closed") {
-          return [{ day_of_week: day.value, is_closed: true }];
-        }
+      // Preserve the last saved values for every other day.
+      const nextSchedule = buildSchedule(savedRecords).map((day) =>
+        day.value === editedDay.value ? editedDay : day
+      );
 
-        if (day.mode === "custom") {
-          return day.ranges.map(({ opens_at, closes_at }) => ({
-            day_of_week: day.value,
-            opens_at,
-            closes_at,
-            is_closed: false,
-          }));
-        }
-
-        return []; // "inherit": no rows means the day follows business hours
-      });
-
-      // One request; the server swaps the whole week in a transaction.
+      // The Rails endpoint atomically replaces the full week.
       await apiFetch(`/api/v1/users/${user.id}/user_working_hours/replace`, {
         method: "PUT",
-        body: JSON.stringify({ user_working_hours: userWorkingHours }),
+        body: JSON.stringify({
+          user_working_hours: serializeSchedule(nextSchedule),
+        }),
       });
 
-      router.replace("/settings");
+      // Read the actual saved records back from Rails.
+      const saved = await apiFetch<WorkingHour[]>(
+        `/api/v1/users/${user.id}/user_working_hours`
+      );
+
+      const savedDay = buildSchedule(saved).find(
+        (day) => day.value === editedDay.value
+      );
+
+      setSavedRecords(saved);
+
+      // Keep any unsaved edits on the other days.
+      setSchedule((previous) =>
+        previous.map((day) =>
+          day.value === editedDay.value ? (savedDay ?? day) : day
+        )
+      );
+
+      // Collapse the edited day after a successful save.
+      setExpandedDay(null);
     } catch (requestError) {
       setError(errorMessage(requestError));
+      setErrorDay(editedDay.value);
     } finally {
       setIsSaving(false);
     }
@@ -380,8 +404,13 @@ export default function MyWorkingHoursScreen() {
       ) : null}
 
       {schedule.map((day, dayIndex) => {
+        const isExpanded = expandedDay === day.value;
+
         const inheritedRanges = businessHours
-          .filter((record) => Number(record.day_of_week) === day.value)
+          .filter(
+            (record) =>
+              Number(record.day_of_week) === day.value && !record.is_closed
+          )
           .sort((a, b) => String(a.opens_at).localeCompare(String(b.opens_at)));
 
         return (
@@ -397,121 +426,173 @@ export default function MyWorkingHoursScreen() {
               gap: 12,
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{day.label}</Text>
-
-            <View
+            <Pressable
+              disabled={isSaving}
+              onPress={() =>
+                setExpandedDay((current) =>
+                  current === day.value ? null : day.value
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${day.label} working hours`}
+              accessibilityState={{ expanded: isExpanded }}
               style={{
-                borderWidth: 1,
-                borderRadius: 8,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingVertical: 4,
               }}
             >
-              <Picker
-                selectedValue={day.mode}
-                enabled={!isSaving}
-                onValueChange={(value: DayMode) => changeMode(dayIndex, value)}
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "600",
+                }}
               >
-                <Picker.Item label="Use Business Hours" value="inherit" />
-                <Picker.Item label="Custom Hours" value="custom" />
-                <Picker.Item label="Not Working" value="closed" />
-              </Picker>
-            </View>
-
-            {errorDay === day.value && error ? (
-              <Text accessibilityRole="alert" style={{ color: "red" }}>
-                {error}
+                {day.label}
               </Text>
-            ) : null}
 
-            {day.mode === "inherit" && (
-              <View style={{ gap: 4 }}>
-                {inheritedRanges.length === 0 ? (
-                  <Text>Business closed</Text>
-                ) : (
-                  inheritedRanges.map((range) => (
-                    <Text key={range.id}>
-                      {formatTime(range.opens_at)} –{" "}
-                      {formatTime(range.closes_at)}
-                    </Text>
-                  ))
-                )}
-              </View>
+              <Ionicons
+                name={isExpanded ? "chevron-up" : "chevron-down"}
+                size={22}
+                color="#000"
+              />
+            </Pressable>
+
+            {!isExpanded && (
+              <Text style={{ color: "#666" }}>
+                {day.mode === "closed"
+                  ? "Not Working"
+                  : day.mode === "inherit"
+                    ? "Using Business Hours"
+                    : formatRanges(day.ranges)}
+              </Text>
             )}
 
-            {day.mode === "closed" && (
-              <Text>You are not available on this day.</Text>
-            )}
-
-            {day.mode === "custom" && (
-              <View style={{ gap: 12 }}>
-                {day.ranges.map((range, rangeIndex) => (
-                  <View
-                    key={rangeIndex}
-                    style={{
-                      borderTopWidth: rangeIndex > 0 ? 1 : 0,
-                      paddingTop: rangeIndex > 0 ? 12 : 0,
-                      gap: 8,
-                    }}
+            {isExpanded && (
+              <>
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Picker
+                    selectedValue={day.mode}
+                    enabled={!isSaving}
+                    onValueChange={(value: DayMode) =>
+                      changeMode(dayIndex, value)
+                    }
                   >
-                    <Text>Opens</Text>
+                    <Picker.Item label="Use Business Hours" value="inherit" />
+                    <Picker.Item label="Custom Hours" value="custom" />
+                    <Picker.Item label="Not Working" value="closed" />
+                  </Picker>
+                </View>
 
-                    <Picker
-                      selectedValue={range.opens_at}
-                      enabled={!isSaving}
-                      onValueChange={(value) =>
-                        updateRange(dayIndex, rangeIndex, "opens_at", value)
-                      }
-                    >
-                      {TIME_OPTIONS.map((option) => (
-                        <Picker.Item
-                          key={option.value}
-                          label={option.label}
-                          value={option.value}
+                {errorDay === day.value && error ? (
+                  <Text accessibilityRole="alert" style={{ color: "red" }}>
+                    {error}
+                  </Text>
+                ) : null}
+
+                {day.mode === "inherit" && (
+                  <View style={{ gap: 4 }}>
+                    {inheritedRanges.length === 0 ? (
+                      <Text>Business closed</Text>
+                    ) : (
+                      inheritedRanges.map((range) => (
+                        <Text key={range.id}>
+                          {formatTime(range.opens_at)} –{" "}
+                          {formatTime(range.closes_at)}
+                        </Text>
+                      ))
+                    )}
+                  </View>
+                )}
+
+                {day.mode === "closed" && (
+                  <Text>You are not available on this day.</Text>
+                )}
+
+                {day.mode === "custom" && (
+                  <View style={{ gap: 12 }}>
+                    {day.ranges.map((range, rangeIndex) => (
+                      <View
+                        key={rangeIndex}
+                        style={{
+                          borderTopWidth: rangeIndex > 0 ? 1 : 0,
+                          paddingTop: rangeIndex > 0 ? 12 : 0,
+                          gap: 8,
+                        }}
+                      >
+                        <Text>Opens</Text>
+
+                        <Picker
+                          selectedValue={range.opens_at}
+                          enabled={!isSaving}
+                          onValueChange={(value) =>
+                            updateRange(dayIndex, rangeIndex, "opens_at", value)
+                          }
+                        >
+                          {TIME_OPTIONS.map((option) => (
+                            <Picker.Item
+                              key={option.value}
+                              label={option.label}
+                              value={option.value}
+                            />
+                          ))}
+                        </Picker>
+
+                        <Text>Closes</Text>
+
+                        <Picker
+                          selectedValue={range.closes_at}
+                          enabled={!isSaving}
+                          onValueChange={(value) =>
+                            updateRange(
+                              dayIndex,
+                              rangeIndex,
+                              "closes_at",
+                              value
+                            )
+                          }
+                        >
+                          {TIME_OPTIONS.map((option) => (
+                            <Picker.Item
+                              key={option.value}
+                              label={option.label}
+                              value={option.value}
+                            />
+                          ))}
+                        </Picker>
+
+                        <Button
+                          title="Remove Range"
+                          disabled={isSaving}
+                          onPress={() => removeRange(dayIndex, rangeIndex)}
                         />
-                      ))}
-                    </Picker>
-
-                    <Text>Closes</Text>
-
-                    <Picker
-                      selectedValue={range.closes_at}
-                      enabled={!isSaving}
-                      onValueChange={(value) =>
-                        updateRange(dayIndex, rangeIndex, "closes_at", value)
-                      }
-                    >
-                      {TIME_OPTIONS.map((option) => (
-                        <Picker.Item
-                          key={option.value}
-                          label={option.label}
-                          value={option.value}
-                        />
-                      ))}
-                    </Picker>
+                      </View>
+                    ))}
 
                     <Button
-                      title="Remove Range"
+                      title="+ Add Hours"
                       disabled={isSaving}
-                      onPress={() => removeRange(dayIndex, rangeIndex)}
+                      onPress={() => addRange(dayIndex)}
                     />
                   </View>
-                ))}
+                )}
 
                 <Button
-                  title="+ Add Hours"
+                  title={isSaving ? "Saving..." : "Save Range"}
                   disabled={isSaving}
-                  onPress={() => addRange(dayIndex)}
+                  onPress={() => handleSaveDay(dayIndex)}
                 />
-              </View>
+              </>
             )}
           </View>
         );
       })}
-
-      <Button
-        title={isSaving ? "Saving..." : "Save My Working Hours"}
-        disabled={isSaving}
-        onPress={handleSave}
-      />
     </ScrollView>
   );
 }

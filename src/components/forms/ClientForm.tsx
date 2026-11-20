@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Button, Text, TextInput, View } from "react-native";
 
 import { ValidatedEmailInput } from "@/components/ValidatedEmailInput";
+import { useZipLookup } from "@/hooks/useZipLookup";
 import { formatPhoneNumber } from "@/utils/formValidation";
 
 export type ClientFormValues = {
@@ -62,8 +63,12 @@ export function ClientForm({
     initialValues?.postal_code || ""
   );
 
+  const { lookupZip, cancelLookup, isLookingUpZip, zipError } = useZipLookup();
+
   useEffect(() => {
     if (!initialValues) return;
+
+    cancelLookup();
 
     setFirstName(initialValues.first_name || "");
     setLastName(initialValues.last_name || "");
@@ -75,7 +80,44 @@ export function ClientForm({
     setCity(initialValues.city || "");
     setState(initialValues.state || "");
     setPostalCode(initialValues.postal_code || "");
-  }, [initialValues]);
+  }, [initialValues, cancelLookup]);
+
+  function handleZipChange(value: string) {
+    const zip = value.replace(/\D/g, "").slice(0, 5);
+
+    setPostalCode(zip);
+
+    void lookupZip(zip, ({ city, state }) => {
+      setCity(city);
+      setState(state);
+    });
+  }
+
+  function handleCityChange(value: string) {
+    cancelLookup();
+    setCity(value);
+  }
+
+  function handleStateChange(value: string) {
+    cancelLookup();
+    setState(value);
+  }
+
+  function handleSubmit() {
+    cancelLookup();
+
+    onSubmit({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      address_line1: addressLine1,
+      address_line2: addressLine2,
+      city,
+      state,
+      postal_code: postalCode,
+    });
+  }
 
   const inputStyle = {
     borderWidth: 1,
@@ -144,11 +186,46 @@ export function ClientForm({
       </View>
 
       <View style={{ gap: 6 }}>
+        <Text>ZIP Code</Text>
+        <TextInput
+          placeholder="70130"
+          value={postalCode}
+          onChangeText={handleZipChange}
+          autoComplete="postal-code"
+          keyboardType="number-pad"
+          maxLength={5}
+          editable={!isSaving}
+          style={inputStyle}
+        />
+
+        {isLookingUpZip ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <ActivityIndicator size="small" />
+            <Text>Looking up ZIP code...</Text>
+          </View>
+        ) : null}
+
+        {zipError ? (
+          <Text style={{ color: "red" }}>
+            {zipError} You can enter the city and state manually.
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={{ gap: 6 }}>
         <Text>City</Text>
         <TextInput
           placeholder="City"
           value={city}
-          onChangeText={setCity}
+          onChangeText={handleCityChange}
+          autoCapitalize="words"
+          editable={!isSaving}
           style={inputStyle}
         />
       </View>
@@ -156,20 +233,12 @@ export function ClientForm({
       <View style={{ gap: 6 }}>
         <Text>State</Text>
         <TextInput
-          placeholder="State"
+          placeholder="LA"
           value={state}
-          onChangeText={setState}
-          style={inputStyle}
-        />
-      </View>
-
-      <View style={{ gap: 6 }}>
-        <Text>ZIP / Postal Code</Text>
-        <TextInput
-          placeholder="ZIP / Postal Code"
-          value={postalCode}
-          onChangeText={setPostalCode}
-          autoComplete="postal-code"
+          onChangeText={handleStateChange}
+          autoCapitalize="characters"
+          maxLength={2}
+          editable={!isSaving}
           style={inputStyle}
         />
       </View>
@@ -178,19 +247,7 @@ export function ClientForm({
 
       <Button
         title={isSaving ? "Saving..." : submitLabel}
-        onPress={() =>
-          onSubmit({
-            first_name: firstName,
-            last_name: lastName,
-            email,
-            phone,
-            address_line1: addressLine1,
-            address_line2: addressLine2,
-            city,
-            state,
-            postal_code: postalCode,
-          })
-        }
+        onPress={handleSubmit}
         disabled={isSaving}
       />
     </View>
